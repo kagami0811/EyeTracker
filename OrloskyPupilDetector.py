@@ -6,6 +6,7 @@ import tkinter as tk
 import os
 from tkinter import filedialog
 import matplotlib.pyplot as plt
+import argparse
 
 # Crop the image to maintain a specific aspect ratio (width:height) before resizing. 
 def crop_to_aspect_ratio(image, width=640, height=480):

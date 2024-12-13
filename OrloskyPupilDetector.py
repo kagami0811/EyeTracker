@@ -406,8 +406,8 @@ def process_frame(frame):
 # Loads a video and finds the pupil in each frame
 def process_video(video_path, input_method):
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for MP4 format
-    out = cv2.VideoWriter('C:/Storage/Source Videos/output_video.mp4', fourcc, 30.0, (640, 480))  # Output video filename, codec, frame rate, and frame size
+    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for MP4 format
+    # out = cv2.VideoWriter('C:/Storage/Source Videos/output_video.mp4', fourcc, 30.0, (640, 480))  # Output video filename, codec, frame rate, and frame size
 
     if input_method == 1:
         cap = cv2.VideoCapture(video_path)
@@ -468,7 +468,7 @@ def process_video(video_path, input_method):
             debug_mode_on = False
             cv2.destroyAllWindows()
         if key == ord('q'):  # Press 'q' to quit
-            out.release()
+            # out.release()
             break   
         elif key == ord(' '):  # Press spacebar to start/stop
             while True:
@@ -479,15 +479,15 @@ def process_video(video_path, input_method):
                     break
 
     cap.release()
-    out.release()
+    # out.release()
     cv2.destroyAllWindows()
 
 #Prompts the user to select a video file if the hardcoded path is not found
 #This is just for my debugging convenience :)
-def select_video():
-    root = tk.Tk()
-    root.withdraw()  # Hide the main window
-    video_path = 'C:/Google Drive/Eye Tracking/fulleyetest.mp4'
+def select_video(video_path):
+    # root = tk.Tk()
+    # root.withdraw()  # Hide the main window
+    # video_path = 'C:/Google Drive/Eye Tracking/fulleyetest.mp4'
     if not os.path.exists(video_path):
         print("No file found at hardcoded path. Please select a video file.")
         video_path = filedialog.askopenfilename(title="Select Video File", filetypes=[("Video Files", "*.mp4;*.avi")])
@@ -498,7 +498,15 @@ def select_video():
     #second parameter is 1 for video 2 for webcam
     process_video(video_path, 1)
 
+
+# unset SESSION_MANAGER
+# python OrloskyPupilDetector.py /home/demo/Downloads/241208cut2.mov
 if __name__ == "__main__":
-    select_video()
+    parser = argparse.ArgumentParser()    
+    parser.add_argument('video_path', help='video_path')   
+    args = parser.parse_args()    
+    
+    video_path = args.video_path
+    select_video(video_path=video_path)
 
 

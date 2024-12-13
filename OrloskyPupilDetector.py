@@ -7,6 +7,93 @@ import os
 from tkinter import filedialog
 import matplotlib.pyplot as plt
 import argparse
+import ctypes
+import tkinter.ttk as ttk
+from PIL import Image, ImageOps, ImageTk
+import copy
+
+TK_WINDOW_WIDTH = 1400
+TK_WINDOW_HEIGHT = 800
+
+IMAGE_W = 640
+IMAGE_H = 480
+
+
+FRAME_COUNT = 0
+# default
+default_th_dict = {"thresholded_image_strict_value":5, "thresholded_image_medium_value":15,"thresholded_image_relaxed_value":25, "eye_size_value": 250 }
+
+
+def show_next_frame(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value,eye_size_value, cap, canvas):
+    global FRAME_COUNT
+    FRAME_COUNT += 1
+    print(f"FRAME {FRAME_COUNT}")
+    while True:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, FRAME_COUNT)
+        ret, original_image = cap.read()
+        if ret == False:
+            FRAME_COUNT += 1
+        if ret == True:
+            break
+    
+    original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+    original_image = crop_to_aspect_ratio(original_image)
+    
+    original_rgb_pil = Image.fromarray(original_image)
+    # canvas.photo = ImageTk.PhotoImage(original_rgb_pil)
+    # canvas_create = canvas.create_image(0,0,anchor='nw', image=canvas.photo)
+    # canvas.itemconfig(canvas_create, image= canvas.photo)
+    # replace_image(canvas=canvas, img_pil=original_rgb_pil)
+    bottun_click(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value, eye_size_value, original_image, canvas)
+
+    
+
+def bottun_click(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value, eye_size_value,original_image, canvas):
+    
+    th_dict = copy.deepcopy(default_th_dict)
+    thresholded_image_strict_value = thresholded_image_strict_value.get()
+    thresholded_image_medium_value = thresholded_image_medium_value.get()
+    thresholded_image_relaxed_value = thresholded_image_relaxed_value.get()
+    eye_size_value = eye_size_value.get()
+    
+    th_dict["thresholded_image_strict_value"] = int(thresholded_image_strict_value)
+    th_dict["thresholded_image_medium_value"] = int(thresholded_image_medium_value)
+    th_dict["thresholded_image_relaxed_value"] = int(thresholded_image_relaxed_value)
+    th_dict["eye_size_value"] = int(eye_size_value)
+
+
+    assert len(th_dict.keys()) == len(default_th_dict.keys())
+    
+    darkest_point = get_darkest_area(original_image)
+
+    # Convert to grayscale to handle pixel value operations
+    gray_frame = cv2.cvtColor(original_image, cv2.COLOR_RGB2GRAY)
+    darkest_pixel_value = gray_frame[darkest_point[1], darkest_point[0]]
+    
+    # apply thresholding operations at different levels
+    # at least one should give us a good ellipse segment
+    thresholded_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, th_dict["thresholded_image_strict_value"])#lite
+    thresholded_image_strict = mask_outside_square(thresholded_image_strict, darkest_point, th_dict["eye_size_value"])
+
+    thresholded_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, th_dict["thresholded_image_medium_value"])#medium
+    thresholded_image_medium = mask_outside_square(thresholded_image_medium, darkest_point, th_dict["eye_size_value"])
+    
+    thresholded_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, th_dict["thresholded_image_relaxed_value"])#heavy
+    thresholded_image_relaxed = mask_outside_square(thresholded_image_relaxed, darkest_point, th_dict["eye_size_value"])
+    
+    #take the three images thresholded at different levels and process them
+    final_rotated_rect, test_frame = process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, original_image, gray_frame, darkest_point, False, False)
+    
+    img_pil = Image.fromarray(test_frame)
+    replace_image(canvas=canvas, img_pil=img_pil)
+    
+    print(f"th_dict {th_dict}")                  
+
+
+def replace_image(canvas, img_pil):
+    canvas.photo = ImageTk.PhotoImage(img_pil)
+    canvas_create = canvas.create_image(0,0,anchor='nw', image=canvas.photo)
+    canvas.itemconfig(canvas_create, image= canvas.photo)
 
 # Crop the image to maintain a specific aspect ratio (width:height) before resizing. 
 def crop_to_aspect_ratio(image, width=640, height=480):
@@ -355,9 +442,9 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
         #cv2.circle(test_frame, darkest_point, 3, (255, 125, 125), -1)
         center_x, center_y = map(int, ellipse[0])
         cv2.circle(test_frame, (center_x, center_y), 3, (255, 255, 0), -1)
-        cv2.putText(test_frame, "SPACE = play/pause", (10,410), cv2.FONT_HERSHEY_SIMPLEX, .55, (255,90,30), 2) #space
-        cv2.putText(test_frame, "Q      = quit", (10,430), cv2.FONT_HERSHEY_SIMPLEX, .55, (255,90,30), 2) #quit
-        cv2.putText(test_frame, "D      = show debug", (10,450), cv2.FONT_HERSHEY_SIMPLEX, .55, (255,90,30), 2) #debug
+        # cv2.putText(test_frame, "SPACE = play/pause", (10,410), cv2.FONT_HERSHEY_SIMPLEX, .55, (255,90,30), 2) #space
+        # cv2.putText(test_frame, "Q      = quit", (10,430), cv2.FONT_HERSHEY_SIMPLEX, .55, (255,90,30), 2) #quit
+        # cv2.putText(test_frame, "D      = show debug", (10,450), cv2.FONT_HERSHEY_SIMPLEX, .55, (255,90,30), 2) #debug
 
     if render_cv_window:
         cv2.imshow('best_thresholded_image_contours_on_frame', test_frame)
@@ -371,40 +458,41 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
         cv2.ellipse(gray_frame, ellipse, (255,255,255), 2)  # Draw with white color and thickness of 2
 
     #process_frames now returns a rotated rectangle for the ellipse for easy access
-    return final_rotated_rect
+    return final_rotated_rect, test_frame
 
 
 # Finds the pupil in an individual frame and returns the center point
-def process_frame(frame):
+# def process_frame(frame):
 
-    # Crop and resize frame
-    frame = crop_to_aspect_ratio(frame)
+#     # Crop and resize frame
+#     frame = crop_to_aspect_ratio(frame)
 
-    #find the darkest point
-    darkest_point = get_darkest_area(frame)
+#     #find the darkest point
+#     darkest_point = get_darkest_area(frame)
 
-    # Convert to grayscale to handle pixel value operations
-    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    darkest_pixel_value = gray_frame[darkest_point[1], darkest_point[0]]
+#     # Convert to grayscale to handle pixel value operations
+#     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#     darkest_pixel_value = gray_frame[darkest_point[1], darkest_point[0]]
     
-    # apply thresholding operations at different levels
-    # at least one should give us a good ellipse segment
-    thresholded_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, 5)#lite
-    thresholded_image_strict = mask_outside_square(thresholded_image_strict, darkest_point, 250)
+#     # apply thresholding operations at different levels
+#     # at least one should give us a good ellipse segment
+#     thresholded_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, 5)#lite
+#     thresholded_image_strict = mask_outside_square(thresholded_image_strict, darkest_point, 250)
 
-    thresholded_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, 15)#medium
-    thresholded_image_medium = mask_outside_square(thresholded_image_medium, darkest_point, 250)
+#     thresholded_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, 15)#medium
+#     thresholded_image_medium = mask_outside_square(thresholded_image_medium, darkest_point, 250)
     
-    thresholded_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, 25)#heavy
-    thresholded_image_relaxed = mask_outside_square(thresholded_image_relaxed, darkest_point, 250)
+#     thresholded_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, 25)#heavy
+#     thresholded_image_relaxed = mask_outside_square(thresholded_image_relaxed, darkest_point, 250)
     
-    #take the three images thresholded at different levels and process them
-    final_rotated_rect = process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, frame, gray_frame, darkest_point, False, False)
+#     #take the three images thresholded at different levels and process them
+#     final_rotated_rect = process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, frame, gray_frame, darkest_point, False, False)
     
-    return final_rotated_rect
+#     return final_rotated_rect
 
 # Loads a video and finds the pupil in each frame
-def process_video(video_path, input_method):
+def process_video(video_path, input_method, gui=True):
+    global FRAME_COUNT
 
     # fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for MP4 format
     # out = cv2.VideoWriter('C:/Storage/Source Videos/output_video.mp4', fourcc, 30.0, (640, 480))  # Output video filename, codec, frame rate, and frame size
@@ -425,62 +513,154 @@ def process_video(video_path, input_method):
     debug_mode_on = False
     
     temp_center = (0,0)
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        # Crop and resize frame
-        frame = crop_to_aspect_ratio(frame)
-
-        #find the darkest point
-        darkest_point = get_darkest_area(frame)
-
-        if debug_mode_on:
-            darkest_image = frame.copy()
-            cv2.circle(darkest_image, darkest_point, 10, (0, 0, 255), -1)
-            cv2.imshow('Darkest image patch', darkest_image)
-
-        # Convert to grayscale to handle pixel value operations
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        darkest_pixel_value = gray_frame[darkest_point[1], darkest_point[0]]
+    
+    if gui:
+    
+        #https://watlab-blog.com/2020/07/18/tkinter-frame-pack-grid/
+        #https://office54.net/python/tkinter/python-tkinter-button
+        # https://qiita.com/yutaka_m/items/f3bb883a5ffc860fcfca
+        # rootメインウィンドウの設定
+        root = tk.Tk()
+        root.title("tkinter application")
+        root.geometry(f"{TK_WINDOW_WIDTH}x{TK_WINDOW_HEIGHT}")
         
-        # apply thresholding operations at different levels
-        # at least one should give us a good ellipse segment
-        thresholded_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, 5)#lite
-        thresholded_image_strict = mask_outside_square(thresholded_image_strict, darkest_point, 250)
+        # sub window
+        canvas_frame = tk.Frame(root, height=IMAGE_H, width=IMAGE_W)
+        th_frame = tk.Frame(root, height=100, width=600)
+        th_frame = tk.Frame(root, height=100, width=600)
+        eye_size_frame = tk.Frame(root, height=100, width=600)
+        
+        apply_frame = tk.Frame(root, height=100, width=600)
+        next_frame = tk.Frame(root, height=100, width=600)
 
-        thresholded_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, 15)#medium
-        thresholded_image_medium = mask_outside_square(thresholded_image_medium, darkest_point, 250)
+        canvas_frame.place(relx=0.05, rely=0.05)
+        th_frame.place(relx=0.50, rely=0.1)
+        eye_size_frame.place(relx=0.75, rely=0.1)
+        apply_frame.place(relx=0.50, rely=0.8)
+        next_frame.place(relx=0.50, rely=0.85)
         
-        thresholded_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, 25)#heavy
-        thresholded_image_relaxed = mask_outside_square(thresholded_image_relaxed, darkest_point, 250)
+        # canvas frame label
+        image_label = tk.Label(
+            canvas_frame, text="Movie", bg="white", relief=tk.RIDGE
+            )
+        image_label.grid(row=0, column=0, sticky=tk.W + tk.E)
+        # canvas frame (image)
+        canvas = tk.Canvas(root, bg="#deb887", width=IMAGE_W, height=IMAGE_H)
+        canvas.grid(row=1, column=0)
+      
+        while True:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, FRAME_COUNT)
+            ret, original_image = cap.read()
+            if ret == False:
+                FRAME_COUNT += 1
+            if ret == True:
+                break
         
-        #take the three images thresholded at different levels and process them
-        pupil_rotated_rect = process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, frame, gray_frame, darkest_point, debug_mode_on, True)
+        original_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2RGB)
+        original_image = crop_to_aspect_ratio(original_image)
         
-        key = cv2.waitKey(1) & 0xFF
+        original_rgb_pil = Image.fromarray(original_image)
+        # canvas.photo = ImageTk.PhotoImage(original_rgb_pil)
+        # canvas_create = canvas.create_image(0,0,anchor='nw', image=canvas.photo)
+        # canvas.itemconfig(canvas_create, image= canvas.photo)
+        replace_image(canvas=canvas, img_pil=original_rgb_pil)
         
-        if key == ord('d') and debug_mode_on == False:  # Press 'q' to start debug mode
-            debug_mode_on = True
-        elif key == ord('d') and debug_mode_on == True:
-            debug_mode_on = False
-            cv2.destroyAllWindows()
-        if key == ord('q'):  # Press 'q' to quit
-            # out.release()
-            break   
-        elif key == ord(' '):  # Press spacebar to start/stop
-            while True:
-                key = cv2.waitKey(1) & 0xFF
-                if key == ord(' '):  # Press spacebar again to resume
-                    break
-                elif key == ord('q'):  # Press 'q' to quit
-                    break
+        # 画像の閾値処理の受け取り
+        thresholded_image_strict_value = tk.StringVar()
+        thresholded_image_strict_entry = tk.Entry(th_frame, bd=5, textvariable=thresholded_image_strict_value)
+        thresholded_image_strict_entry.grid(row=1, column=0,pady=10)
+        thresholded_image_strict_label = tk.Label(th_frame, bg="lightblue", text="thresholded_image_strict")
+        thresholded_image_strict_label.grid(row=0, column=0)
+        
+        thresholded_image_medium_value = tk.StringVar()
+        thresholded_image_medium_entry = tk.Entry(th_frame, bd=5, textvariable=thresholded_image_medium_value)
+        thresholded_image_medium_entry.grid(row=4, column=0,pady=10)
+        thresholded_image_medium_label = tk.Label(th_frame, bg="lightblue", text="thresholded_image_medium")
+        thresholded_image_medium_label.grid(row=3, column=0)
+        
+        thresholded_image_relaxed_value = tk.StringVar()
+        thresholded_image_relaxed_entry = tk.Entry(th_frame, bd=5, textvariable=thresholded_image_relaxed_value)
+        thresholded_image_relaxed_entry.grid(row=7, column=0,pady=10)
+        thresholded_image_relaxed_label = tk.Label(th_frame, bg="lightblue", text="thresholded_image_relaxed")
+        thresholded_image_relaxed_label.grid(row=6, column=0)
+        
+        
+        # 目の大きさ
+        eye_size_value = tk.StringVar()
+        eye_size_entry = tk.Entry(eye_size_frame, bd=5, textvariable=eye_size_value)
+        eye_size_entry.grid(row=7, column=0,pady=10)
+        eye_size_label = tk.Label(eye_size_frame, bg="orange", text="eye size")
+        eye_size_label.grid(row=6, column=0)
+                
+        # apply 
+        button = tk.Button(apply_frame, text = "Apply",command = lambda:bottun_click(thresholded_image_strict_value=thresholded_image_strict_value,thresholded_image_medium_value=thresholded_image_medium_value, eye_size_value=eye_size_value, thresholded_image_relaxed_value=thresholded_image_relaxed_value, original_image=original_image, canvas=canvas))
+        button.grid(row=0, column=0, pady=10)
+        
+        next_buttun = tk.Button(next_frame, text="Next", command=lambda:show_next_frame(thresholded_image_strict_value=thresholded_image_strict_value,thresholded_image_medium_value=thresholded_image_medium_value, thresholded_image_relaxed_value=thresholded_image_relaxed_value,eye_size_value=eye_size_value, cap=cap, canvas=canvas))
+        next_buttun.grid(row=0, column=0)
+        
+        root.mainloop()
+        
+        
+        cap.release()
 
-    cap.release()
-    # out.release()
-    cv2.destroyAllWindows()
+    else:
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            # frame[:,500:] = 255
+            # Crop and resize frame
+            frame = crop_to_aspect_ratio(frame)
+
+            #find the darkest point
+            darkest_point = get_darkest_area(frame)
+
+            if debug_mode_on:
+                darkest_image = frame.copy()
+                cv2.circle(darkest_image, darkest_point, 10, (0, 0, 255), -1)
+                cv2.imshow('Darkest image patch', darkest_image)
+
+            # Convert to grayscale to handle pixel value operations
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            darkest_pixel_value = gray_frame[darkest_point[1], darkest_point[0]]
+            
+            # apply thresholding operations at different levels
+            # at least one should give us a good ellipse segment
+            thresholded_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, 5)#lite
+            thresholded_image_strict = mask_outside_square(thresholded_image_strict, darkest_point, 250)
+
+            thresholded_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, 15)#medium
+            thresholded_image_medium = mask_outside_square(thresholded_image_medium, darkest_point, 250)
+            
+            thresholded_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, 25)#heavy
+            thresholded_image_relaxed = mask_outside_square(thresholded_image_relaxed, darkest_point, 250)
+            
+            #take the three images thresholded at different levels and process them
+            pupil_rotated_rect, test_image = process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, frame, gray_frame, darkest_point, debug_mode_on, True)
+            
+            key = cv2.waitKey(1) & 0xFF
+            
+            if key == ord('d') and debug_mode_on == False:  # Press 'q' to start debug mode
+                debug_mode_on = True
+            elif key == ord('d') and debug_mode_on == True:
+                debug_mode_on = False
+                cv2.destroyAllWindows()
+            if key == ord('q'):  # Press 'q' to quit
+                # out.release()
+                break   
+            elif key == ord(' '):  # Press spacebar to start/stop
+                while True:
+                    key = cv2.waitKey(1) & 0xFF
+                    if key == ord(' '):  # Press spacebar again to resume
+                        break
+                    elif key == ord('q'):  # Press 'q' to quit
+                        break
+
+        cap.release()
+        # out.release()
+        cv2.destroyAllWindows()
 
 #Prompts the user to select a video file if the hardcoded path is not found
 #This is just for my debugging convenience :)

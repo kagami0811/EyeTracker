@@ -1,4 +1,22 @@
-# EyeTracker
+# EyeTracker 
+
+## Environment
+    
+```
+singularity shell --nv EyeTrack.sif
+```
+
+## Tracking
+
+
+
+```
+python OrloskyPupilDetector.py video_path
+```
+
+
+
+# EyeTracker (Original)
 A lightweight, robust Python eye tracker
 
 This repository is an open-source eye tracking algorithm written in Python. Currently, it is an updated version of the pupil tracker from https://github.com/YutaItoh/3D-Eye-Tracker/blob/master/main/pupilFitter.h that has been optimized and simplified. 

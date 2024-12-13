@@ -2,13 +2,13 @@
 
 ## Environment
     
+
 ```
+singularity build --fakeroot EyeTrack.sif EyeTrack.def
 singularity shell --nv EyeTrack.sif
 ```
 
 ## Tracking
-
-
 
 ```
 python OrloskyPupilDetector.py video_path

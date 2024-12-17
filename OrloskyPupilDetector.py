@@ -725,13 +725,13 @@ def process_video(video_path, input_method, gui=True):
         search_w_value = tk.StringVar()
         search_w_entry= tk.Entry(search_area_frame, bd=5, textvariable=search_w_value)
         search_w_entry.grid(row=1, column=0,pady=10)
-        search_w_label = tk.Label(search_area_frame, bg="green", text="searh width")
+        search_w_label = tk.Label(search_area_frame, bg="green", text="search width")
         search_w_label.grid(row=0, column=0)
 
         search_h_value = tk.StringVar()
         search_h_entry= tk.Entry(search_area_frame, bd=5, textvariable=search_h_value)
         search_h_entry.grid(row=3, column=0,pady=10)
-        search_h_label = tk.Label(search_area_frame, bg="green", text="searh height")
+        search_h_label = tk.Label(search_area_frame, bg="green", text="search height")
         search_h_label.grid(row=2, column=0)
 
 

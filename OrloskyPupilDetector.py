@@ -22,10 +22,10 @@ DEBUG = False
 FRAME_COUNT = 0
 
 # default
-default_th_dict = {"thresholded_image_strict_value":5, "thresholded_image_medium_value":15,"thresholded_image_relaxed_value":25, "eye_size_value": 250, "search_w_value":100, "search_h_value":100 }
+default_th_dict = {"threshold_image_strict_value":5, "threshold_image_medium_value":15,"threshold_image_relaxed_value":25, "eye_size_value": 250, "search_w_value":100, "search_h_value":100 }
 
 
-def show_next_frame(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value,eye_size_value, search_w_value, search_h_value, cap, canvas):
+def show_next_frame(threshold_image_strict_value, threshold_image_medium_value,threshold_image_relaxed_value,eye_size_value, search_w_value, search_h_value, cap, canvas):
     global FRAME_COUNT
     FRAME_COUNT += 1
     print(f"FRAME {FRAME_COUNT}")
@@ -45,23 +45,23 @@ def show_next_frame(thresholded_image_strict_value, thresholded_image_medium_val
     # canvas_create = canvas.create_image(0,0,anchor='nw', image=canvas.photo)
     # canvas.itemconfig(canvas_create, image= canvas.photo)
     # replace_image(canvas=canvas, img_pil=original_rgb_pil)
-    bottun_click(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value, eye_size_value, search_w_value, search_h_value, original_image, canvas)
+    bottun_click(threshold_image_strict_value, threshold_image_medium_value,threshold_image_relaxed_value, eye_size_value, search_w_value, search_h_value, original_image, canvas)
 
     
 
-def bottun_click(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value, eye_size_value, search_w_value, search_h_value, original_image, canvas):
+def bottun_click(threshold_image_strict_value, threshold_image_medium_value,threshold_image_relaxed_value, eye_size_value, search_w_value, search_h_value, original_image, canvas):
     
     th_dict = copy.deepcopy(default_th_dict)
-    thresholded_image_strict_value = thresholded_image_strict_value.get()
-    thresholded_image_medium_value = thresholded_image_medium_value.get()
-    thresholded_image_relaxed_value = thresholded_image_relaxed_value.get()
+    threshold_image_strict_value = threshold_image_strict_value.get()
+    threshold_image_medium_value = threshold_image_medium_value.get()
+    threshold_image_relaxed_value = threshold_image_relaxed_value.get()
     eye_size_value = eye_size_value.get()
     search_w_value = search_w_value.get()
     search_h_value = search_h_value.get()
     
-    th_dict["thresholded_image_strict_value"] = int(thresholded_image_strict_value)
-    th_dict["thresholded_image_medium_value"] = int(thresholded_image_medium_value)
-    th_dict["thresholded_image_relaxed_value"] = int(thresholded_image_relaxed_value)
+    th_dict["threshold_image_strict_value"] = int(threshold_image_strict_value)
+    th_dict["threshold_image_medium_value"] = int(threshold_image_medium_value)
+    th_dict["threshold_image_relaxed_value"] = int(threshold_image_relaxed_value)
     th_dict["eye_size_value"] = int(eye_size_value)
     th_dict["search_h_value"] = int(search_h_value)
     th_dict["search_w_value"] = int(search_w_value)
@@ -78,17 +78,17 @@ def bottun_click(thresholded_image_strict_value, thresholded_image_medium_value,
     
     # apply thresholding operations at different levels
     # at least one should give us a good ellipse segment
-    thresholded_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, th_dict["thresholded_image_strict_value"])#lite
-    thresholded_image_strict = mask_outside_square(thresholded_image_strict, darkest_point, th_dict["eye_size_value"])
+    threshold_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, th_dict["threshold_image_strict_value"])#lite
+    threshold_image_strict = mask_outside_square(threshold_image_strict, darkest_point, th_dict["eye_size_value"])
 
-    thresholded_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, th_dict["thresholded_image_medium_value"])#medium
-    thresholded_image_medium = mask_outside_square(thresholded_image_medium, darkest_point, th_dict["eye_size_value"])
+    threshold_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, th_dict["threshold_image_medium_value"])#medium
+    threshold_image_medium = mask_outside_square(threshold_image_medium, darkest_point, th_dict["eye_size_value"])
     
-    thresholded_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, th_dict["thresholded_image_relaxed_value"])#heavy
-    thresholded_image_relaxed = mask_outside_square(thresholded_image_relaxed, darkest_point, th_dict["eye_size_value"])
+    threshold_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, th_dict["threshold_image_relaxed_value"])#heavy
+    threshold_image_relaxed = mask_outside_square(threshold_image_relaxed, darkest_point, th_dict["eye_size_value"])
     
-    #take the three images thresholded at different levels and process them
-    final_rotated_rect, test_frame = process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, original_image, gray_frame, darkest_point, False, False, th_dict)
+    #take the three images threshold at different levels and process them
+    final_rotated_rect, test_frame = process_frames(threshold_image_strict, threshold_image_medium, threshold_image_relaxed, original_image, gray_frame, darkest_point, False, False, th_dict)
     
     img_pil = Image.fromarray(test_frame)
     replace_image(canvas=canvas, img_pil=img_pil)
@@ -127,9 +127,9 @@ def apply_binary_threshold(image, darkestPixelValue, addedThreshold):
     # Calculate the threshold as the sum of the two input values
     threshold = darkestPixelValue + addedThreshold
     # Apply the binary threshold
-    _, thresholded_image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY_INV)
+    _, threshold_image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY_INV)
     
-    return thresholded_image
+    return threshold_image
 
 #Finds a square area of dark pixels in the image
 #@param I input image (converted to grayscale during search process)
@@ -261,20 +261,20 @@ def optimize_contours_by_angle(contours, image):
 
 #returns the largest contour that is not extremely long or tall
 #contours is the list of contours, pixel_thresh is the max pixels to filter, and ratio_thresh is the max ratio
-def filter_contours_by_area_and_return_largest(contours, pixel_thresh, ratio_thresh, mask_image, debug_counter_images, debug_elipse_images,debug_ellipse_on_eye_images, frame):
+def filter_contours_by_area_and_return_largest(contours, pixel_thresh, ratio_thresh, mask_image, debug_contour_images, debug_elipse_images,debug_ellipse_on_eye_images, frame):
     max_area = 0
     largest_contour = None
 
     #DEBUG
     # print(len(contours))
-    draw_counter_image = copy.deepcopy(mask_image)
-    draw_counter_image = cv2.drawContours(cv2.cvtColor(draw_counter_image,cv2.COLOR_GRAY2BGR ), contours, -1, (0,0,255), 10)
+    draw_contour_image = copy.deepcopy(mask_image)
+    draw_contour_image = cv2.drawContours(cv2.cvtColor(draw_contour_image,cv2.COLOR_GRAY2BGR ), contours, -1, (0,0,255), 10)
     # cv2.namedWindow("img", cv2.WINDOW_NORMAL)
     # cv2.setWindowProperty("img", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     # cv2.imshow("img", draw_counter_image)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-    debug_counter_images.append(draw_counter_image)
+    debug_contour_images.append(draw_contour_image)
 
 
     draw_elipse_image = copy.deepcopy(mask_image)
@@ -282,11 +282,11 @@ def filter_contours_by_area_and_return_largest(contours, pixel_thresh, ratio_thr
     draw_elipse_on_eye_image = copy.deepcopy(frame)
     
     for i in range(len(contours)):
-        counter = contours[i]
+        contour = contours[i]
         # Fit an ellipse to the contour
-        if len(counter) < 5:
+        if len(contour) < 5:
             continue
-        ellipse = cv2.fitEllipse(counter)
+        ellipse = cv2.fitEllipse(contour)
 
         # Draw the ellipse on the mask with white color (255)
         
@@ -320,9 +320,9 @@ def filter_contours_by_area_and_return_largest(contours, pixel_thresh, ratio_thr
 
     # Return a list with only the largest contour, or an empty list if no contour was found
     if largest_contour is not None:
-        return [largest_contour], debug_counter_images, debug_elipse_images, debug_ellipse_on_eye_images
+        return [largest_contour], debug_contour_images, debug_elipse_images, debug_ellipse_on_eye_images
     else:
-        return [], debug_counter_images, debug_elipse_images, debug_ellipse_on_eye_images
+        return [], debug_contour_images, debug_elipse_images, debug_ellipse_on_eye_images
 
 #Fits an ellipse to the optimized contours and draws it on the image.
 def fit_and_draw_ellipses(image, optimized_contours, color):
@@ -418,11 +418,11 @@ def check_ellipse_goodness(binary_image, contour, debug_mode_on):
     
     return ellipse_goodness
 
-def process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, frame, gray_frame, darkest_point, debug_mode_on, render_cv_window, th_dict):
+def process_frames(threshold_image_strict, threshold_image_medium, threshold_image_relaxed, frame, gray_frame, darkest_point, debug_mode_on, render_cv_window, th_dict):
   
     final_rotated_rect = ((0,0),(0,0),0)
 
-    image_array = [thresholded_image_relaxed, thresholded_image_medium, thresholded_image_strict] #holds images
+    image_array = [threshold_image_relaxed, threshold_image_medium, threshold_image_strict] #holds images
     name_array = ["relaxed", "medium", "strict"] #for naming windows
     final_image = image_array[0] #holds return array
     final_contours = [] #holds final contours
@@ -437,8 +437,8 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
     gray_copies = [gray_copy1, gray_copy2, gray_copy3]
     final_goodness = 0
 
-    debug_counter_images = []
-    debug_elipse_images = []
+    debug_contour_images = []
+    debug_ellipse_images = []
     debug_ellipse_on_eye_images = []
     
     #iterate through binary images and see which fits the ellipse best
@@ -452,7 +452,7 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
 
         # Create an empty image to draw contours
         contour_img2 = np.zeros_like(dilated_image)
-        reduced_contours, debug_counter_images, debug_elipse_images, debug_ellipse_on_eye_images = filter_contours_by_area_and_return_largest(contours, 1000, 3, mask_image=dilated_image, debug_counter_images=debug_counter_images, debug_elipse_images=debug_elipse_images, debug_ellipse_on_eye_images=debug_ellipse_on_eye_images, frame=frame) # th
+        reduced_contours, debug_contour_images, debug_ellipse_images, debug_ellipse_on_eye_images = filter_contours_by_area_and_return_largest(contours, 1000, 3, mask_image=dilated_image, debug_contour_images=debug_contour_images, debug_elipse_images=debug_ellipse_images, debug_ellipse_on_eye_images=debug_ellipse_on_eye_images, frame=frame) # th
 
         if len(reduced_contours) > 0 and len(reduced_contours[0]) > 5:
             current_goodness = check_ellipse_goodness(dilated_image, reduced_contours[0], debug_mode_on)
@@ -487,7 +487,7 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
             final_image = dilated_image
     
     if debug_mode_on:
-        cv2.imshow("Reduced contours of best thresholded image", ellipse_reduced_contours)
+        cv2.imshow("Reduced contours of best threshold image", ellipse_reduced_contours)
 
     test_frame = frame.copy()
     
@@ -506,7 +506,7 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
         # cv2.putText(test_frame, "D      = show debug", (10,450), cv2.FONT_HERSHEY_SIMPLEX, .55, (255,90,30), 2) #debug
 
     if render_cv_window:
-        cv2.imshow('best_thresholded_image_contours_on_frame', test_frame)
+        cv2.imshow('best_threshold_image_contours_on_frame', test_frame)
     
     # Create an empty image to draw contours
     contour_img3 = np.zeros_like(image_array[i-1])
@@ -521,33 +521,33 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
         fig =  plt.figure(figsize=(30, 40))
         plt.title(f"frame {FRAME_COUNT} {th_dict}")
         ax1 = fig.add_subplot(4, 3, 1)
-        debug_image = debug_counter_images[0]
+        debug_image = debug_contour_images[0]
         debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image, cv2.COLOR_BGR2RGB)))
         ax1.imshow(debug_image)
         ax1.axis("off")
         ax2 = fig.add_subplot(4, 3, 2)
-        debug_image = debug_counter_images[1]
+        debug_image = debug_contour_images[1]
         debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image, cv2.COLOR_BGR2RGB)))
         ax2.imshow(debug_image)
         ax2.axis("off")
         ax3 = fig.add_subplot(4, 3, 3)
-        debug_image = debug_counter_images[2]
+        debug_image = debug_contour_images[2]
         debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image, cv2.COLOR_BGR2RGB)))
         ax3.imshow(debug_image)
         ax3.axis("off")
 
         ax4 = fig.add_subplot(4, 3, 4)
-        debug_image = debug_elipse_images[0]
+        debug_image = debug_ellipse_images[0]
         debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image, cv2.COLOR_BGR2RGB)))
         ax4.imshow(debug_image)
         ax4.axis("off")
         ax5 = fig.add_subplot(4, 3, 5)
-        debug_image = debug_elipse_images[1]
+        debug_image = debug_ellipse_images[1]
         debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image,cv2.COLOR_BGR2RGB)))
         ax5.imshow(debug_image)
         ax5.axis("off")
         ax6 = fig.add_subplot(4, 3, 6)
-        debug_image = debug_elipse_images[2]
+        debug_image = debug_ellipse_images[2]
         debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image,cv2.COLOR_BGR2RGB)))
         ax6.imshow(debug_image)
         ax6.axis("off")
@@ -602,17 +602,17 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
     
 #     # apply thresholding operations at different levels
 #     # at least one should give us a good ellipse segment
-#     thresholded_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, 5)#lite
-#     thresholded_image_strict = mask_outside_square(thresholded_image_strict, darkest_point, 250)
+#     threshold_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, 5)#lite
+#     threshold_image_strict = mask_outside_square(threshold_image_strict, darkest_point, 250)
 
-#     thresholded_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, 15)#medium
-#     thresholded_image_medium = mask_outside_square(thresholded_image_medium, darkest_point, 250)
+#     threshold_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, 15)#medium
+#     threshold_image_medium = mask_outside_square(threshold_image_medium, darkest_point, 250)
     
-#     thresholded_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, 25)#heavy
-#     thresholded_image_relaxed = mask_outside_square(thresholded_image_relaxed, darkest_point, 250)
+#     threshold_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, 25)#heavy
+#     threshold_image_relaxed = mask_outside_square(threshold_image_relaxed, darkest_point, 250)
     
-#     #take the three images thresholded at different levels and process them
-#     final_rotated_rect = process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, frame, gray_frame, darkest_point, False, False)
+#     #take the three images threshold at different levels and process them
+#     final_rotated_rect = process_frames(threshold_image_strict, threshold_image_medium, threshold_image_relaxed, frame, gray_frame, darkest_point, False, False)
     
 #     return final_rotated_rect
 
@@ -695,23 +695,23 @@ def process_video(video_path, input_method, gui=True):
         replace_image(canvas=canvas, img_pil=original_rgb_pil)
         
         # 画像の閾値処理の受け取り
-        thresholded_image_strict_value = tk.StringVar()
-        thresholded_image_strict_entry = tk.Entry(th_frame, bd=5, textvariable=thresholded_image_strict_value)
-        thresholded_image_strict_entry.grid(row=1, column=0,pady=10)
-        thresholded_image_strict_label = tk.Label(th_frame, bg="lightblue", text="thresholded_image_strict")
-        thresholded_image_strict_label.grid(row=0, column=0)
+        threshold_image_strict_value = tk.StringVar()
+        threshold_image_strict_entry = tk.Entry(th_frame, bd=5, textvariable=threshold_image_strict_value)
+        threshold_image_strict_entry.grid(row=1, column=0,pady=10)
+        threshold_image_strict_label = tk.Label(th_frame, bg="lightblue", text="threshold_image_strict")
+        threshold_image_strict_label.grid(row=0, column=0)
         
-        thresholded_image_medium_value = tk.StringVar()
-        thresholded_image_medium_entry = tk.Entry(th_frame, bd=5, textvariable=thresholded_image_medium_value)
-        thresholded_image_medium_entry.grid(row=4, column=0,pady=10)
-        thresholded_image_medium_label = tk.Label(th_frame, bg="lightblue", text="thresholded_image_medium")
-        thresholded_image_medium_label.grid(row=3, column=0)
+        threshold_image_medium_value = tk.StringVar()
+        threshold_image_medium_entry = tk.Entry(th_frame, bd=5, textvariable=threshold_image_medium_value)
+        threshold_image_medium_entry.grid(row=4, column=0,pady=10)
+        threshold_image_medium_label = tk.Label(th_frame, bg="lightblue", text="threshold_image_medium")
+        threshold_image_medium_label.grid(row=3, column=0)
         
-        thresholded_image_relaxed_value = tk.StringVar()
-        thresholded_image_relaxed_entry = tk.Entry(th_frame, bd=5, textvariable=thresholded_image_relaxed_value)
-        thresholded_image_relaxed_entry.grid(row=7, column=0,pady=10)
-        thresholded_image_relaxed_label = tk.Label(th_frame, bg="lightblue", text="thresholded_image_relaxed")
-        thresholded_image_relaxed_label.grid(row=6, column=0)
+        threshold_image_relaxed_value = tk.StringVar()
+        threshold_image_relaxed_entry = tk.Entry(th_frame, bd=5, textvariable=threshold_image_relaxed_value)
+        threshold_image_relaxed_entry.grid(row=7, column=0,pady=10)
+        threshold_image_relaxed_label = tk.Label(th_frame, bg="lightblue", text="threshold_image_relaxed")
+        threshold_image_relaxed_label.grid(row=6, column=0)
         
         
         # 目の大きさ
@@ -737,11 +737,11 @@ def process_video(video_path, input_method, gui=True):
 
                 
         # apply 
-        button = tk.Button(apply_frame, text = "Apply",command = lambda:bottun_click(thresholded_image_strict_value=thresholded_image_strict_value,thresholded_image_medium_value=thresholded_image_medium_value,thresholded_image_relaxed_value=thresholded_image_relaxed_value,  eye_size_value=eye_size_value,  search_h_value=search_h_value, search_w_value=search_w_value, original_image=original_image, canvas=canvas))
+        button = tk.Button(apply_frame, text = "Apply",command = lambda:bottun_click(threshold_image_strict_value=threshold_image_strict_value,threshold_image_medium_value=threshold_image_medium_value,threshold_image_relaxed_value=threshold_image_relaxed_value,  eye_size_value=eye_size_value,  search_h_value=search_h_value, search_w_value=search_w_value, original_image=original_image, canvas=canvas))
         button.grid(row=0, column=0, pady=10)
         
-        next_buttun = tk.Button(next_frame, text="Next", command=lambda:show_next_frame(thresholded_image_strict_value=thresholded_image_strict_value,thresholded_image_medium_value=thresholded_image_medium_value, thresholded_image_relaxed_value=thresholded_image_relaxed_value,eye_size_value=eye_size_value,  search_h_value=search_h_value, search_w_value=search_w_value,  cap=cap, canvas=canvas))
-        next_buttun.grid(row=0, column=0)
+        next_button = tk.Button(next_frame, text="Next", command=lambda:show_next_frame(threshold_image_strict_value=threshold_image_strict_value,threshold_image_medium_value=threshold_image_medium_value, threshold_image_relaxed_value=threshold_image_relaxed_value,eye_size_value=eye_size_value,  search_h_value=search_h_value, search_w_value=search_w_value,  cap=cap, canvas=canvas))
+        next_button.grid(row=0, column=0)
         
         root.mainloop()
         
@@ -772,17 +772,17 @@ def process_video(video_path, input_method, gui=True):
             
             # apply thresholding operations at different levels
             # at least one should give us a good ellipse segment
-            thresholded_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, 5)#lite
-            thresholded_image_strict = mask_outside_square(thresholded_image_strict, darkest_point, 250)
+            threshold_image_strict = apply_binary_threshold(gray_frame, darkest_pixel_value, 5)#lite
+            threshold_image_strict = mask_outside_square(threshold_image_strict, darkest_point, 250)
 
-            thresholded_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, 15)#medium
-            thresholded_image_medium = mask_outside_square(thresholded_image_medium, darkest_point, 250)
+            threshold_image_medium = apply_binary_threshold(gray_frame, darkest_pixel_value, 15)#medium
+            threshold_image_medium = mask_outside_square(threshold_image_medium, darkest_point, 250)
             
-            thresholded_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, 25)#heavy
-            thresholded_image_relaxed = mask_outside_square(thresholded_image_relaxed, darkest_point, 250)
+            threshold_image_relaxed = apply_binary_threshold(gray_frame, darkest_pixel_value, 25)#heavy
+            threshold_image_relaxed = mask_outside_square(threshold_image_relaxed, darkest_point, 250)
             
-            #take the three images thresholded at different levels and process them
-            pupil_rotated_rect, test_image = process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, frame, gray_frame, darkest_point, debug_mode_on, True)
+            #take the three images threshold at different levels and process them
+            pupil_rotated_rect, test_image = process_frames(threshold_image_strict, threshold_image_medium, threshold_image_relaxed, frame, gray_frame, darkest_point, debug_mode_on, True)
             
             key = cv2.waitKey(1) & 0xFF
             

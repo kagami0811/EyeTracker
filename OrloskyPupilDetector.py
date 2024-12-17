@@ -15,16 +15,17 @@ import copy
 TK_WINDOW_WIDTH = 1400
 TK_WINDOW_HEIGHT = 800
 
-IMAGE_W = 640
-IMAGE_H = 480
+IMAGE_W = 600
+IMAGE_H = 600
 
-
+DEBUG = False
 FRAME_COUNT = 0
+
 # default
-default_th_dict = {"thresholded_image_strict_value":5, "thresholded_image_medium_value":15,"thresholded_image_relaxed_value":25, "eye_size_value": 250 }
+default_th_dict = {"thresholded_image_strict_value":5, "thresholded_image_medium_value":15,"thresholded_image_relaxed_value":25, "eye_size_value": 250, "search_w_value":100, "search_h_value":100 }
 
 
-def show_next_frame(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value,eye_size_value, cap, canvas):
+def show_next_frame(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value,eye_size_value, search_w_value, search_h_value, cap, canvas):
     global FRAME_COUNT
     FRAME_COUNT += 1
     print(f"FRAME {FRAME_COUNT}")
@@ -44,27 +45,32 @@ def show_next_frame(thresholded_image_strict_value, thresholded_image_medium_val
     # canvas_create = canvas.create_image(0,0,anchor='nw', image=canvas.photo)
     # canvas.itemconfig(canvas_create, image= canvas.photo)
     # replace_image(canvas=canvas, img_pil=original_rgb_pil)
-    bottun_click(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value, eye_size_value, original_image, canvas)
+    bottun_click(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value, eye_size_value, search_w_value, search_h_value, original_image, canvas)
 
     
 
-def bottun_click(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value, eye_size_value,original_image, canvas):
+def bottun_click(thresholded_image_strict_value, thresholded_image_medium_value,thresholded_image_relaxed_value, eye_size_value, search_w_value, search_h_value, original_image, canvas):
     
     th_dict = copy.deepcopy(default_th_dict)
     thresholded_image_strict_value = thresholded_image_strict_value.get()
     thresholded_image_medium_value = thresholded_image_medium_value.get()
     thresholded_image_relaxed_value = thresholded_image_relaxed_value.get()
     eye_size_value = eye_size_value.get()
+    search_w_value = search_w_value.get()
+    search_h_value = search_h_value.get()
     
     th_dict["thresholded_image_strict_value"] = int(thresholded_image_strict_value)
     th_dict["thresholded_image_medium_value"] = int(thresholded_image_medium_value)
     th_dict["thresholded_image_relaxed_value"] = int(thresholded_image_relaxed_value)
     th_dict["eye_size_value"] = int(eye_size_value)
+    th_dict["search_h_value"] = int(search_h_value)
+    th_dict["search_w_value"] = int(search_w_value)
+
 
 
     assert len(th_dict.keys()) == len(default_th_dict.keys())
     
-    darkest_point = get_darkest_area(original_image)
+    darkest_point = get_darkest_area(original_image, search_w=th_dict["search_w_value"], search_h=th_dict["search_h_value"])
 
     # Convert to grayscale to handle pixel value operations
     gray_frame = cv2.cvtColor(original_image, cv2.COLOR_RGB2GRAY)
@@ -82,7 +88,7 @@ def bottun_click(thresholded_image_strict_value, thresholded_image_medium_value,
     thresholded_image_relaxed = mask_outside_square(thresholded_image_relaxed, darkest_point, th_dict["eye_size_value"])
     
     #take the three images thresholded at different levels and process them
-    final_rotated_rect, test_frame = process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, original_image, gray_frame, darkest_point, False, False)
+    final_rotated_rect, test_frame = process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, original_image, gray_frame, darkest_point, False, False, th_dict)
     
     img_pil = Image.fromarray(test_frame)
     replace_image(canvas=canvas, img_pil=img_pil)
@@ -96,7 +102,7 @@ def replace_image(canvas, img_pil):
     canvas.itemconfig(canvas_create, image= canvas.photo)
 
 # Crop the image to maintain a specific aspect ratio (width:height) before resizing. 
-def crop_to_aspect_ratio(image, width=640, height=480):
+def crop_to_aspect_ratio(image, width=IMAGE_W, height=IMAGE_H):
     
     # Calculate current aspect ratio
     current_height, current_width = image.shape[:2]
@@ -128,7 +134,7 @@ def apply_binary_threshold(image, darkestPixelValue, addedThreshold):
 #Finds a square area of dark pixels in the image
 #@param I input image (converted to grayscale during search process)
 #@return a point within the pupil region
-def get_darkest_area(image):
+def get_darkest_area(image, search_w, search_h):
 
     ignoreBounds = 20 #don't search the boundaries of the image for ignoreBounds pixels
     imageSkipSize = 10 #only check the darkness of a block for every Nth x and y pixel (sparse sampling)
@@ -138,12 +144,22 @@ def get_darkest_area(image):
     # Convert to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
+    # 中心からsearch_w, seach_hの範囲でdarkest_pointを探す
+    h, w = gray.shape
+    center_x = w //2
+    center_y = h //2
+    min_x = max(0, center_x - search_w)
+    max_x = min(w, center_x + search_w)
+    min_y = max(0, center_y - search_h)
+    max_y = min(h, center_y + search_h)
+
+
     min_sum = float('inf')
     darkest_point = None
 
     # Loop over the image with spacing defined by imageSkipSize, ignoring the boundaries
-    for y in range(ignoreBounds, gray.shape[0] - ignoreBounds, imageSkipSize):
-        for x in range(ignoreBounds, gray.shape[1] - ignoreBounds, imageSkipSize):
+    for y in range(min_x, max_x,imageSkipSize):
+        for x in range(min_y, max_y, imageSkipSize):
             # Calculate sum of pixel values in the search area, skipping pixels based on internalSkipSize
             current_sum = np.int64(0)
             num_pixels = 0
@@ -184,6 +200,12 @@ def mask_outside_square(image, center, size):
 
     # Apply the mask to the image
     masked_image = cv2.bitwise_and(image, mask)
+    #DEBUG
+    # cv2.namedWindow("img", cv2.WINDOW_NORMAL)
+    # cv2.setWindowProperty("img", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    # cv2.imshow("img", masked_image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
     return masked_image
    
@@ -239,9 +261,41 @@ def optimize_contours_by_angle(contours, image):
 
 #returns the largest contour that is not extremely long or tall
 #contours is the list of contours, pixel_thresh is the max pixels to filter, and ratio_thresh is the max ratio
-def filter_contours_by_area_and_return_largest(contours, pixel_thresh, ratio_thresh):
+def filter_contours_by_area_and_return_largest(contours, pixel_thresh, ratio_thresh, mask_image, debug_counter_images, debug_elipse_images,debug_ellipse_on_eye_images, frame):
     max_area = 0
     largest_contour = None
+
+    #DEBUG
+    # print(len(contours))
+    draw_counter_image = copy.deepcopy(mask_image)
+    draw_counter_image = cv2.drawContours(cv2.cvtColor(draw_counter_image,cv2.COLOR_GRAY2BGR ), contours, -1, (0,0,255), 10)
+    # cv2.namedWindow("img", cv2.WINDOW_NORMAL)
+    # cv2.setWindowProperty("img", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    # cv2.imshow("img", draw_counter_image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    debug_counter_images.append(draw_counter_image)
+
+
+    draw_elipse_image = copy.deepcopy(mask_image)
+    draw_elipse_image = cv2.cvtColor(draw_elipse_image,cv2.COLOR_GRAY2BGR )
+    draw_elipse_on_eye_image = copy.deepcopy(frame)
+    
+    for i in range(len(contours)):
+        counter = contours[i]
+        # Fit an ellipse to the contour
+        if len(counter) < 5:
+            continue
+        ellipse = cv2.fitEllipse(counter)
+
+        # Draw the ellipse on the mask with white color (255)
+        
+        
+        cv2.ellipse(draw_elipse_image, ellipse, (255, 255, 0), 3)
+        cv2.ellipse(draw_elipse_on_eye_image, ellipse, (255, 255, 0), 3)
+        
+    debug_elipse_images.append(draw_elipse_image)
+    debug_ellipse_on_eye_images.append(draw_elipse_on_eye_image)
     
     for contour in contours:
         area = cv2.contourArea(contour)
@@ -266,9 +320,9 @@ def filter_contours_by_area_and_return_largest(contours, pixel_thresh, ratio_thr
 
     # Return a list with only the largest contour, or an empty list if no contour was found
     if largest_contour is not None:
-        return [largest_contour]
+        return [largest_contour], debug_counter_images, debug_elipse_images, debug_ellipse_on_eye_images
     else:
-        return []
+        return [], debug_counter_images, debug_elipse_images, debug_ellipse_on_eye_images
 
 #Fits an ellipse to the optimized contours and draws it on the image.
 def fit_and_draw_ellipses(image, optimized_contours, color):
@@ -364,7 +418,7 @@ def check_ellipse_goodness(binary_image, contour, debug_mode_on):
     
     return ellipse_goodness
 
-def process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, frame, gray_frame, darkest_point, debug_mode_on, render_cv_window):
+def process_frames(thresholded_image_strict, thresholded_image_medium, thresholded_image_relaxed, frame, gray_frame, darkest_point, debug_mode_on, render_cv_window, th_dict):
   
     final_rotated_rect = ((0,0),(0,0),0)
 
@@ -382,18 +436,23 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
     gray_copy3 = gray_frame.copy()
     gray_copies = [gray_copy1, gray_copy2, gray_copy3]
     final_goodness = 0
+
+    debug_counter_images = []
+    debug_elipse_images = []
+    debug_ellipse_on_eye_images = []
     
     #iterate through binary images and see which fits the ellipse best
     for i in range(1,4):
         # Dilate the binary image
         dilated_image = cv2.dilate(image_array[i-1], kernel, iterations=2)#medium
+        # dilated_image = image_array[i-1]
         
         # Find contours
         contours, hierarchy = cv2.findContours(dilated_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # Create an empty image to draw contours
         contour_img2 = np.zeros_like(dilated_image)
-        reduced_contours = filter_contours_by_area_and_return_largest(contours, 1000, 3)
+        reduced_contours, debug_counter_images, debug_elipse_images, debug_ellipse_on_eye_images = filter_contours_by_area_and_return_largest(contours, 1000, 3, mask_image=dilated_image, debug_counter_images=debug_counter_images, debug_elipse_images=debug_elipse_images, debug_ellipse_on_eye_images=debug_ellipse_on_eye_images, frame=frame) # th
 
         if len(reduced_contours) > 0 and len(reduced_contours[0]) > 5:
             current_goodness = check_ellipse_goodness(dilated_image, reduced_contours[0], debug_mode_on)
@@ -457,6 +516,73 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
         ellipse = cv2.fitEllipse(contour) # Fit ellipse
         cv2.ellipse(gray_frame, ellipse, (255,255,255), 2)  # Draw with white color and thickness of 2
 
+    #DEBUG
+    if DEBUG:
+        fig =  plt.figure(figsize=(30, 40))
+        plt.title(f"frame {FRAME_COUNT} {th_dict}")
+        ax1 = fig.add_subplot(4, 3, 1)
+        debug_image = debug_counter_images[0]
+        debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image, cv2.COLOR_BGR2RGB)))
+        ax1.imshow(debug_image)
+        ax1.axis("off")
+        ax2 = fig.add_subplot(4, 3, 2)
+        debug_image = debug_counter_images[1]
+        debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image, cv2.COLOR_BGR2RGB)))
+        ax2.imshow(debug_image)
+        ax2.axis("off")
+        ax3 = fig.add_subplot(4, 3, 3)
+        debug_image = debug_counter_images[2]
+        debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image, cv2.COLOR_BGR2RGB)))
+        ax3.imshow(debug_image)
+        ax3.axis("off")
+
+        ax4 = fig.add_subplot(4, 3, 4)
+        debug_image = debug_elipse_images[0]
+        debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image, cv2.COLOR_BGR2RGB)))
+        ax4.imshow(debug_image)
+        ax4.axis("off")
+        ax5 = fig.add_subplot(4, 3, 5)
+        debug_image = debug_elipse_images[1]
+        debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image,cv2.COLOR_BGR2RGB)))
+        ax5.imshow(debug_image)
+        ax5.axis("off")
+        ax6 = fig.add_subplot(4, 3, 6)
+        debug_image = debug_elipse_images[2]
+        debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image,cv2.COLOR_BGR2RGB)))
+        ax6.imshow(debug_image)
+        ax6.axis("off")
+        
+        ax7 = fig.add_subplot(4, 3, 7)
+        debug_image = debug_ellipse_on_eye_images[0]
+        debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image,cv2.COLOR_BGR2RGB)))
+        ax7.imshow(debug_image)
+        ax7.axis("off")
+        # debug_image = debug_elipse_images[0]
+        # debug_image = cv2.cvtColor(debug_image, cv2.COLOR_BGR2RGB)
+        # debug_image[np.where(debug_image==np.array([255,255,255]))] = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)[np.where(debug_image==np.array([255,255,255]))]
+        # ax7.imshow(debug_image)
+        ax8 = fig.add_subplot(4, 3, 8)
+        debug_image = debug_ellipse_on_eye_images[1]
+        debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image,cv2.COLOR_BGR2RGB)))
+        ax8.imshow(debug_image)
+        ax8.axis("off")
+        ax9 = fig.add_subplot(4, 3, 9)
+        debug_image = debug_ellipse_on_eye_images[2]
+        debug_image = Image.fromarray(np.uint8(cv2.cvtColor(debug_image,cv2.COLOR_BGR2RGB)))
+        ax9.imshow(debug_image)
+        ax9.axis("off")
+        ax10 = fig.add_subplot(4, 3, 10)
+        ax10.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        ax10.axis("off")
+        ax11 = fig.add_subplot(4, 3, 11)
+        ax11.imshow(test_frame)
+        ax11.axis("off")
+        
+        plt.tight_layout()
+        plt.savefig(f"debug_frame{FRAME_COUNT}.jpg")
+        plt.close()
+
+    
     #process_frames now returns a rotated rectangle for the ellipse for easy access
     return final_rotated_rect, test_frame
 
@@ -529,13 +655,16 @@ def process_video(video_path, input_method, gui=True):
         th_frame = tk.Frame(root, height=100, width=600)
         th_frame = tk.Frame(root, height=100, width=600)
         eye_size_frame = tk.Frame(root, height=100, width=600)
+        search_area_frame = tk.Frame(root, height=100, width=600)
+
         
         apply_frame = tk.Frame(root, height=100, width=600)
         next_frame = tk.Frame(root, height=100, width=600)
 
         canvas_frame.place(relx=0.05, rely=0.05)
         th_frame.place(relx=0.50, rely=0.1)
-        eye_size_frame.place(relx=0.75, rely=0.1)
+        eye_size_frame.place(relx=0.65, rely=0.1)
+        search_area_frame.place(relx=0.85, rely=0.1)
         apply_frame.place(relx=0.50, rely=0.8)
         next_frame.place(relx=0.50, rely=0.85)
         
@@ -588,15 +717,30 @@ def process_video(video_path, input_method, gui=True):
         # 目の大きさ
         eye_size_value = tk.StringVar()
         eye_size_entry = tk.Entry(eye_size_frame, bd=5, textvariable=eye_size_value)
-        eye_size_entry.grid(row=7, column=0,pady=10)
+        eye_size_entry.grid(row=1, column=0,pady=10)
         eye_size_label = tk.Label(eye_size_frame, bg="orange", text="eye size")
-        eye_size_label.grid(row=6, column=0)
+        eye_size_label.grid(row=0, column=0)
+
+        # darket pointの探索範囲
+        search_w_value = tk.StringVar()
+        search_w_entry= tk.Entry(search_area_frame, bd=5, textvariable=search_w_value)
+        search_w_entry.grid(row=1, column=0,pady=10)
+        search_w_label = tk.Label(search_area_frame, bg="green", text="searh width")
+        search_w_label.grid(row=0, column=0)
+
+        search_h_value = tk.StringVar()
+        search_h_entry= tk.Entry(search_area_frame, bd=5, textvariable=search_h_value)
+        search_h_entry.grid(row=3, column=0,pady=10)
+        search_h_label = tk.Label(search_area_frame, bg="green", text="searh height")
+        search_h_label.grid(row=2, column=0)
+
+
                 
         # apply 
-        button = tk.Button(apply_frame, text = "Apply",command = lambda:bottun_click(thresholded_image_strict_value=thresholded_image_strict_value,thresholded_image_medium_value=thresholded_image_medium_value, eye_size_value=eye_size_value, thresholded_image_relaxed_value=thresholded_image_relaxed_value, original_image=original_image, canvas=canvas))
+        button = tk.Button(apply_frame, text = "Apply",command = lambda:bottun_click(thresholded_image_strict_value=thresholded_image_strict_value,thresholded_image_medium_value=thresholded_image_medium_value,thresholded_image_relaxed_value=thresholded_image_relaxed_value,  eye_size_value=eye_size_value,  search_h_value=search_h_value, search_w_value=search_w_value, original_image=original_image, canvas=canvas))
         button.grid(row=0, column=0, pady=10)
         
-        next_buttun = tk.Button(next_frame, text="Next", command=lambda:show_next_frame(thresholded_image_strict_value=thresholded_image_strict_value,thresholded_image_medium_value=thresholded_image_medium_value, thresholded_image_relaxed_value=thresholded_image_relaxed_value,eye_size_value=eye_size_value, cap=cap, canvas=canvas))
+        next_buttun = tk.Button(next_frame, text="Next", command=lambda:show_next_frame(thresholded_image_strict_value=thresholded_image_strict_value,thresholded_image_medium_value=thresholded_image_medium_value, thresholded_image_relaxed_value=thresholded_image_relaxed_value,eye_size_value=eye_size_value,  search_h_value=search_h_value, search_w_value=search_w_value,  cap=cap, canvas=canvas))
         next_buttun.grid(row=0, column=0)
         
         root.mainloop()

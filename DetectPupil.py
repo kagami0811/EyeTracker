@@ -17,6 +17,7 @@ import copy
 import random
 from kalman import KalmanTracker
 from tqdm import tqdm
+from delete_noise_line import delete_line
 
 import sys
 
@@ -24,11 +25,11 @@ import sys
 random.seed(314)
 
 MAX_RANSAC_TIME = 5000
-print(sys.argv)
-THETA_NUM = int(sys.argv[3]) # 50
+# print(sys.argv)
+THETA_NUM = 100
 # ELLIPSE_POINT_NUM = 40
 
-ELLIPSE_POINT_NUM = int(sys.argv[1])
+ELLIPSE_POINT_NUM = 10
 
 DIFF_TH = 20
 TH = 30
@@ -41,13 +42,17 @@ DRAW_CENTER_SIZE = 100
 
 USE_MSE = True
 USE_PIKEL = True
-REFINE = sys.argv[2]
+REFINE = False
+DELETE_LINE = True # inpaintで線ノイズを除去
 if REFINE == "True":
     REFINE = True
 else:
     REFINE = False
-MAX_INFERENCE_FRMAE = 100
+MAX_INFERENCE_FRMAE = 500
 RANSAC_MSE_TH = 10 # ransacの正常値を決める閾値
+
+
+
 
 
 def blur_image(original_image, type, kernel_size=3):
@@ -341,52 +346,52 @@ def refine_ransac(candidate_points, gray, sobel, pupil_center, pupil_major, pupi
 
 
 
-def refine(candidate_points, gray, sobel):
+# def refine(candidate_points, gray, sobel):
 
-    ellipse = cv2.fitEllipse(candidate_points)
-    # print(ellipse)
-    (cx, cy), (w, h), deg = ellipse
-    a = max(h, w)
-    b = min(h, w)
-    f = (a - b) / a
+#     ellipse = cv2.fitEllipse(candidate_points)
+#     # print(ellipse)
+#     (cx, cy), (w, h), deg = ellipse
+#     a = max(h, w)
+#     b = min(h, w)
+#     f = (a - b) / a
 
-    omegas = np.linspace(0, 2*np.pi, OMEGA_NUM)
-    w_ = w //2
-    h_ = h//2
-    deg_ = deg * np.pi/180
-    ellipse_x = (w_ * np.cos(omegas) * np.cos(deg_)) - (h_ * np.sin(omegas) * np.sin(deg_)) + cx
-    ellipse_y = (w_ * np.cos(omegas) * np.sin(deg_)) + (h_ * np.sin(omegas) * np.cos(deg_)) + cy
+#     omegas = np.linspace(0, 2*np.pi, OMEGA_NUM)
+#     w_ = w //2
+#     h_ = h//2
+#     deg_ = deg * np.pi/180
+#     ellipse_x = (w_ * np.cos(omegas) * np.cos(deg_)) - (h_ * np.sin(omegas) * np.sin(deg_)) + cx
+#     ellipse_y = (w_ * np.cos(omegas) * np.sin(deg_)) + (h_ * np.sin(omegas) * np.cos(deg_)) + cy
 
-    ellpise_surrounding = np.concatenate([ellipse_x[:,None], ellipse_y[:,None]], axis=1)
-    # fit した楕円とのmseを計算
-    min_distance_list = []
-    for point in candidate_points:
-        distance = np.linalg.norm((ellpise_surrounding-point), axis=1)
-        min_dist = np.min(distance)
-        min_distance_list.append(min_dist)
-        # image = cv2.circle(image, (int(point[0]), int(point[1])), 2,(0,0,255),-1)
-        # cv2.imwrite("debug_ellipse.jpg", image)
-    median = np.median(min_distance_list)
-    good_fitting_points = candidate_points[np.where(min_distance_list < 2 * median)[0]]
+#     ellpise_surrounding = np.concatenate([ellipse_x[:,None], ellipse_y[:,None]], axis=1)
+#     # fit した楕円とのmseを計算
+#     min_distance_list = []
+#     for point in candidate_points:
+#         distance = np.linalg.norm((ellpise_surrounding-point), axis=1)
+#         min_dist = np.min(distance)
+#         min_distance_list.append(min_dist)
+#         # image = cv2.circle(image, (int(point[0]), int(point[1])), 2,(0,0,255),-1)
+#         # cv2.imwrite("debug_ellipse.jpg", image)
+#     median = np.median(min_distance_list)
+#     good_fitting_points = candidate_points[np.where(min_distance_list < 2 * median)[0]]
     
-    assert len(good_fitting_points) > 5
-    refined_ellipse =  cv2.fitEllipse(good_fitting_points)
-    (cx, cy), (w, h), deg = refined_ellipse
+#     assert len(good_fitting_points) > 5
+#     refined_ellipse =  cv2.fitEllipse(good_fitting_points)
+#     (cx, cy), (w, h), deg = refined_ellipse
 
-    image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-    image = cv2.ellipse(image,refined_ellipse,(255,255,0),2)
-    for point in candidate_points:
+#     image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+#     image = cv2.ellipse(image,refined_ellipse,(255,255,0),2)
+#     for point in candidate_points:
        
-        image = cv2.circle(image, (int(point[0]), int(point[1])), 2,(0,255,255),-1) # yellow
-    for point in good_fitting_points:
-        image = cv2.circle(image, (int(point[0]), int(point[1])), 3,(0,0,255),-1) # red
-    image = cv2.circle(image, (int(cx), int(cy)), 5,(0,255,0),-1) # green
+#         image = cv2.circle(image, (int(point[0]), int(point[1])), 2,(0,255,255),-1) # yellow
+#     for point in good_fitting_points:
+#         image = cv2.circle(image, (int(point[0]), int(point[1])), 3,(0,0,255),-1) # red
+#     image = cv2.circle(image, (int(cx), int(cy)), 5,(0,255,0),-1) # green
 
     
 
-    cv2.imwrite("debug_refine.jpg", image)
+#     cv2.imwrite("debug_refine.jpg", image)
    
-    return [cx, cy], w, h, refined_ellipse, image, good_fitting_points
+#     return [cx, cy], w, h, refined_ellipse, image, good_fitting_points
 
 
 # ffmpeg -i 241208cut2_crop_trim22m_b01_c18movresult_0107_normal/result_50.mp4 -vf crop=w=800:h=560:x=0:y=0 241208cut2_crop_trim22m_b01_c18movresult_0107_normal/result_50_crop.mp4
@@ -396,14 +401,27 @@ def refine(candidate_points, gray, sobel):
 if __name__ == "__main__":
     plt.rcParams["font.size"] = 20
     video_path = "241208cut2_crop_trim22m_b01_c18.mov"
-    if REFINE:
+    if DELETE_LINE:
         subname = "refine"
     else:
         subname = "normal"
-    save_image_folder_path = os.path.basename(video_path).replace(".","")  + f"revise_ransac_result_0107_{subname}_ellipse{ELLIPSE_POINT_NUM}_{THETA_NUM}"
+    save_image_folder_path = os.path.basename(video_path).replace(".","")  + f"ransac_result_0114_{subname}_ellipse{ELLIPSE_POINT_NUM}_{THETA_NUM}"
     os.makedirs(save_image_folder_path, exist_ok=True)
     
+    # video
+    frame_rate = 5
+    fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    size = (800, 800) 
     
+    video_file_path = os.path.join(save_image_folder_path, f"result_{THETA_NUM}.mp4")
+    writer = cv2.VideoWriter(video_file_path, fmt, frame_rate, size)
+    picture_paths = sorted(glob.glob(os.path.join(save_image_folder_path, "*.jpg")))
+    for path in picture_paths:
+        frame = cv2.imread(path)
+        frame = cv2.resize(frame, dsize=size)
+        writer.write(frame)
+    writer.release()  
+    exit()
 
 
 
@@ -417,6 +435,9 @@ if __name__ == "__main__":
     
     cap = cv2.VideoCapture(video_path)
     total_frame_num = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    original_fps = cap.get(cv2.CAP_PROP_FPS)
+    print(f"total frame {total_frame_num} fps {original_fps}")
+
     frame_count = 0
     
     while True:
@@ -428,6 +449,16 @@ if __name__ == "__main__":
             gray = cv2.resize(gray, (600, 600))
     
             original_image = gray[120:520,60:440]
+
+
+            if DELETE_LINE:
+                input_image = copy.deepcopy(original_image)
+                draw_detect_line_image, mask, inpaint_image = delete_line(img=original_image, frame_count=frame_count)
+                if inpaint_image is not None:
+                    
+                    original_image = cv2.cvtColor(inpaint_image, cv2.COLOR_BGR2GRAY)
+
+
             # gaussian_kernel_size = 3
             # blured_image = cv2.GaussianBlur(original_image, ksize=(gaussian_kernel_size, gaussian_kernel_size), sigmaX=0)
             kernel_size = 3
@@ -499,7 +530,10 @@ if __name__ == "__main__":
 
                 fig =  plt.figure(figsize=(24, 24))
                 ax1 = fig.add_subplot(3, 3, 1)
-                ax1.imshow(original_image, cmap="gray")
+                if inpaint_image is not None:
+                    ax1.imshow(input_image, cmap="gray")
+                else:
+                    ax1.imshow(original_image, cmap="gray")
                 ax1.axis("off")
                 ax1.set_title(f"Frame {frame_count} original image")
                 ax2 = fig.add_subplot(3, 3, 2)
@@ -611,7 +645,10 @@ if __name__ == "__main__":
 
             fig =  plt.figure(figsize=(24, 24))
             ax1 = fig.add_subplot(3, 3, 1)
-            ax1.imshow(original_image, cmap="gray")
+            if inpaint_image is not None:
+                ax1.imshow(input_image, cmap="gray")
+            else:
+                ax1.imshow(original_image, cmap="gray")
             ax1.axis("off")
             ax1.set_title(f"Frame {frame_count} original image")
             ax2 = fig.add_subplot(3, 3, 2)
@@ -658,7 +695,22 @@ if __name__ == "__main__":
             candidate_draw_image = cv2.cvtColor(candidate_draw_image, cv2.COLOR_BGR2RGB)
             ax7.imshow(candidate_draw_image)
             ax7.axis("off")
-            ax7.set_title(f"Candidates")     
+            ax7.set_title(f"Candidates")  
+
+            if draw_detect_line_image is not None:
+            
+                ax8 = fig.add_subplot(3, 3, 7)
+                ax8.imshow(draw_detect_line_image)
+                ax8.axis("off")
+                ax8.set_title(f" detect line")
+                ax9 = fig.add_subplot(3, 3, 8)
+                ax9.imshow(mask, cmap="gray")
+                ax9.axis("off")
+                ax9.set_title(f" noise line mask")
+                ax10 = fig.add_subplot(3, 3, 9)
+                ax10.imshow(inpaint_image)
+                ax10.axis("off")
+                ax10.set_title(f"inpaint image")
             plt.tight_layout()
             
             save_path = os.path.join(save_image_folder_path, f"debug_frame{frame_count:04d}_median_kernel{kernel_size}.jpg")
@@ -814,157 +866,3 @@ if __name__ == "__main__":
     writer.release()  
     
 
-    exit()
-# test
-if __name__ == "__main__":
-    video_path = "241208cut2_crop_trim22m_b01_c18.mov"
-    # video_path = "241208cut2_crop.mov"
-    cap = cv2.VideoCapture(video_path)
-    while True:
-        ret, frame = cap.read()
-        if ret == True:
-            
-
-    
-            # cv2.namedWindow("img", cv2.WINDOW_NORMAL)
-            # cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-            # cv2.imshow("img", frame)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-        
-    #     key =cv2.waitKey(10)
-    #     if key == 27:
-            break
-    cap.release()     
-
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    gray = cv2.resize(gray, (600, 600))
-    
-    original_image = gray[120:520,60:440]
-    # https://labs.eecs.tottori-u.ac.jp/sd/Member/oyamada/OpenCV/html/py_tutorials/py_imgproc/py_gradients/py_gradients.html
-    gaussian_kernel_size = 3
-    blured_image = cv2.GaussianBlur(original_image, ksize=(gaussian_kernel_size, gaussian_kernel_size), sigmaX=0)
-    # blured_image =  cv2.medianBlur(original_image, gaussian_kernel_size)
-    # blured_image = original_image
-    # blured_image = cv2.equalizeHist(blured_image)
-    # sobel_kernel = -1
-    # sobel_x = cv2.Sobel(blured_image, cv2.CV_64F, 1, 0, ksize=sobel_kernel)               # 水平方向の勾配
-    # sobel_y = cv2.Sobel(blured_image, cv2.CV_64F, 0, 1, ksize=sobel_kernel)               # 垂直方向の勾配
-    # sobel_x = cv2.convertScaleAbs(sobel_x)
-    # sobel_y = cv2.convertScaleAbs(sobel_y)
-    # sobel_combined = cv2.addWeighted(sobel_x, 0.5, sobel_y, 0.5, 0)
-    # # equalize  = cv2.equalizeHist(sobel_combined)
-    # sobel_combined_normalize = sobel_combined.astype(np.float32)
-    # sobel_combined_normalize = (sobel_combined_normalize - np.min(sobel_combined_normalize)) / (np.max(sobel_combined_normalize) - np.min(sobel_combined_normalize))
-    sobel_combined = make_sobel_image(sobel_kernel=-1, blured_image=blured_image)
-    sobel_combined_3 = make_sobel_image(sobel_kernel=3, blured_image=blured_image)
-    sobel_combined_5 = make_sobel_image(sobel_kernel=5, blured_image=blured_image)
-
-    # laplacian = cv2.Laplacian(blured_image,cv2.CV_64F )
-    erode_kernel = np.ones((3, 3), np.uint8)
-    erode = cv2.erode(sobel_combined, erode_kernel, iterations=1)
-    dilate = cv2.dilate(erode, erode_kernel, iterations=3)
-    
-    
-    # cany = cv2.Canny(blured_image, 0, 0)
-    # result = hough_ellipse(sobel_combined)
-    # result.sort(order='accumulator')
-    # print(len(result))
-    
-    
-    # # 画像の中心から
-    # h, w = original_image.shape
-    # center_x, center_y = w // 2, h // 2
-    # search = 120
-    # search_min_x = max(0, center_x - search)
-    # search_min_y = max(0, center_y - search)
-    # search_max_x = min(w, center_x + search)
-    # search_max_y = min(h, center_y + search)
-    
-    # search_image = original_image[search_min_y:search_max_y, search_min_x:search_max_x]
-    # darkest_point = np.unravel_index(np.argmin(search_image), search_image.shape)
-    pupil_center = [240, 230]
-    thetas = np.linspace(0, 2*np.pi, 30)
-    picked_points_all_direction = []
-
-
-    fig =  plt.figure(figsize=(24, 24))
-    ax1 = fig.add_subplot(3, 3, 1)
-    ax1.imshow(original_image, cmap="gray")
-    ax2 = fig.add_subplot(3, 3, 2)
-    ax2.imshow(blured_image, cmap="gray")
-    # ax3 = fig.add_subplot(3, 3, 3)
-    # ax3.imshow(original_image, cmap="gray")
-    ax4 = fig.add_subplot(3, 3, 4)
-    ax4.imshow(sobel_combined_3, cmap="gray")
-    ax5 = fig.add_subplot(3, 3, 5)
-    ax5.imshow(sobel_combined_5, cmap="gray")
-    ax6 = fig.add_subplot(3, 3, 6)
-    ax6.imshow(sobel_combined, cmap="gray")
-    ax7 = fig.add_subplot(3, 3, 7)
-    ax7.imshow(blured_image, cmap="gray")
-    ax7.scatter(pupil_center[0], pupil_center[1], c="red")
-    for theta in thetas:
-        ray_points = get_points(gray=sobel_combined, start=pupil_center, theta=theta)
-        ax7.scatter(ray_points[:, 0], ray_points[:, 1], color="cyan")
-        value_points = get_values(gray=dilate, ray_points=ray_points)
-    
-    ax8 = fig.add_subplot(3, 3, 8)
-    ax8.imshow(sobel_combined, cmap="gray")
-    ax8.scatter(pupil_center[0], pupil_center[1], c="red")
-    for theta in thetas:
-        ray_points = get_points(gray=dilate, start=pupil_center, theta=theta)
-        value_points = get_values(gray=dilate, ray_points=ray_points)
-        TH = 30
-        picked_points = ray_points[value_points >=TH]
-        ax8.scatter(picked_points[:, 0], picked_points[:, 1], color="magenta")
-    
-
-    ax9 = fig.add_subplot(3, 3, 9)
-    ax9.imshow(sobel_combined, cmap="gray")
-    ax9.scatter(pupil_center[0], pupil_center[1], c="red")
-    for theta in thetas:
-        ray_points = get_points(gray=dilate, start=pupil_center, theta=theta)
-        value_points = get_values(gray=dilate, ray_points=ray_points)
-        diff_points = take_differencial(original_points=value_points)
-        DIFF_TH = 30
-        picked_points = ray_points[np.abs(diff_points) >=DIFF_TH]
-        ax9.scatter(picked_points[:, 0], picked_points[:, 1], color="yellow")
-        ax9.scatter(picked_points[0, 0], picked_points[0, 1], color="red")
-        picked_points_all_direction.append(picked_points[0])
-
-    
-
-    # plt.show()
-    plt.savefig("debug.jpg")
-    plt.close()
-
-    picked_points_all_direction = np.array(picked_points_all_direction)
-    ellipse_candidates, fitted_points, centers = fit_ellipse_ransac(picked_points_all_direction=picked_points_all_direction, gray=sobel_combined)
-
-    best = np.argmin(np.linalg.norm((centers - np.array(pupil_center)[None, ...]), axis=1))
-    image = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
-    # print(len(ellipse_candidates))
-    for fitted, ellipse in zip(fitted_points, ellipse_candidates):
-        # image = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
-        image = cv2.ellipse(image,ellipse,(0,255,0),1)
-        fitted = fitted.astype(np.int64)
-        # for i in range(len(fitted)):
-        #     image = cv2.circle(image, fitted[i], 5,(0,0,255),-1)
-        continue
-    image = cv2.ellipse(image,ellipse_candidates[best],(255,255,0),2)
-    # image = cv2.circle(image, fitted_points[best], 5,(0,0,255),-1)
-    cv2.imwrite("ellipse_candidate.jpg", image)
-
-        # import pdb; pdb.set_trace()
-    # fig =  plt.figure(figsize=(24, 24))
-    # ax1= fig.add_subplot(1,1,1)
-    # for theta in thetas:
-    #     ray_points = get_points(gray=sobel_combined, start=darkest_point, theta=theta)
-    #     value = get_values(gray=sobel_combined, ray_points=ray_points)
-    #     diff_points = take_differencial(original_points=value_points)
-    #     length = np.arange(len(value))
-    #     ax1.scatter(length, diff_points)
-    #     plt.savefig("debug_plot.jpg")
-    #     import pdb; pdb.set_trace()
-    # plt.close()

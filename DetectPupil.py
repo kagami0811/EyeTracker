@@ -47,6 +47,7 @@ if REFINE == "True":
 else:
     REFINE = False
 MAX_INFERENCE_FRMAE = 100
+RANSAC_MSE_TH = 10 # ransacの正常値を決める閾値
 
 
 def blur_image(original_image, type, kernel_size=3):
@@ -129,7 +130,6 @@ def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=ELLIPSE_P
         points = points.astype(np.float32)
        
         ellipse = cv2.fitEllipse(points)
-        # print(ellipse)
         (cx, cy), (w, h), deg = ellipse
         a = max(h, w)
         b = min(h, w)
@@ -140,8 +140,8 @@ def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=ELLIPSE_P
             continue
         # error 
 
-        good_elipses.append(ellipse)
-        fitted_points.append(points)
+        # good_elipses.append(ellipse)
+        # fitted_points.append(points)
         
         #描画して確認
         # image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
@@ -154,9 +154,45 @@ def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=ELLIPSE_P
         ellipse_y = (w_ * np.cos(omegas) * np.sin(deg_)) + (h_ * np.sin(omegas) * np.cos(deg_)) + cy
 
         ellpise_surrounding = np.concatenate([ellipse_x[:,None], ellipse_y[:,None]], axis=1)
+        
+        # 全データサンプルを用いて誤差の小さいもので再度　fitting
+        normal_value_points = []
+        for point in picked_points_all_direction:
+            distance =  np.linalg.norm((ellpise_surrounding-point), axis=1)
+            min_dist = np.min(distance)
+            if min_dist <= RANSAC_MSE_TH:
+                normal_value_points.append(point)
+        
+        normal_value_points = np.array(normal_value_points).astype(np.float32)
+        if len(normal_value_points) < 5:
+            continue
+        ellipse = cv2.fitEllipse(normal_value_points)
+        (cx, cy), (w, h), deg = ellipse
+        a = max(h, w)
+        b = min(h, w)
+        f = (a - b) / a
+        if f > 0.3:
+            continue
+        if a > 1 *(W // 2):
+            continue
+        
+        good_elipses.append(ellipse)
+        fitted_points.append(normal_value_points)
+        
+        omegas = np.linspace(0, 2*np.pi, OMEGA_NUM)
+        w_ = w //2
+        h_ = h//2
+        deg_ = deg * np.pi/180
+        ellipse_x = (w_ * np.cos(omegas) * np.cos(deg_)) - (h_ * np.sin(omegas) * np.sin(deg_)) + cx
+        ellipse_y = (w_ * np.cos(omegas) * np.sin(deg_)) + (h_ * np.sin(omegas) * np.cos(deg_)) + cy
+
+        ellpise_surrounding = np.concatenate([ellipse_x[:,None], ellipse_y[:,None]], axis=1)
+        
+        
         # fit した楕円とのmseを計算
         min_distance_list = []
-        for point in points:
+        # for point in points:
+        for point in normal_value_points:
             distance = np.linalg.norm((ellpise_surrounding-point), axis=1)
             min_dist = np.min(distance)
             min_distance_list.append(min_dist)
@@ -355,7 +391,7 @@ def refine(candidate_points, gray, sobel):
 
 # ffmpeg -i 241208cut2_crop_trim22m_b01_c18movresult_0107_normal/result_50.mp4 -vf crop=w=800:h=560:x=0:y=0 241208cut2_crop_trim22m_b01_c18movresult_0107_normal/result_50_crop.mp4
 
-# ffmpeg -i 241208cut2_crop_trim22m_b01_c18movresult_0107_refine/result_50.mp4 -vf crop=w=800:h=560:x=0:y=0 241208cut2_crop_trim22m_b01_c18movresult_0107_refine/result_50_crop.mp4
+# ffmpeg -i 241208cut2_crop_trim22m_b01_c18movrevise_ransac_result_0107_normal_ellipse20_100/result_100.mp4 -vf crop=w=800:h=560:x=0:y=0 241208cut2_crop_trim22m_b01_c18movrevise_ransac_result_0107_normal_ellipse20_100/result_20_100_crop.mp4
 
 if __name__ == "__main__":
     plt.rcParams["font.size"] = 20
@@ -364,7 +400,7 @@ if __name__ == "__main__":
         subname = "refine"
     else:
         subname = "normal"
-    save_image_folder_path = os.path.basename(video_path).replace(".","")  + f"result_0107_{subname}_ellipse{ELLIPSE_POINT_NUM}_{THETA_NUM}"
+    save_image_folder_path = os.path.basename(video_path).replace(".","")  + f"revise_ransac_result_0107_{subname}_ellipse{ELLIPSE_POINT_NUM}_{THETA_NUM}"
     os.makedirs(save_image_folder_path, exist_ok=True)
     
     

@@ -48,7 +48,7 @@ if REFINE == "True":
     REFINE = True
 else:
     REFINE = False
-MAX_INFERENCE_FRMAE = 500
+MAX_INFERENCE_FRMAE = 300
 RANSAC_MSE_TH = 10 # ransacの正常値を決める閾値
 
 
@@ -141,7 +141,7 @@ def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=ELLIPSE_P
         f = (a - b) / a
         if f > 0.3:
             continue
-        if a > 1 *(W // 2):
+        if a > 1 *(W // 2): # 長径が大きすぎるもの（画像サイズの半分以上）を除去
             continue
         # error 
 
@@ -180,7 +180,8 @@ def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=ELLIPSE_P
             continue
         if a > 1 *(W // 2):
             continue
-        
+
+            continue
         good_elipses.append(ellipse)
         fitted_points.append(normal_value_points)
         
@@ -405,23 +406,23 @@ if __name__ == "__main__":
         subname = "refine"
     else:
         subname = "normal"
-    save_image_folder_path = os.path.basename(video_path).replace(".","")  + f"ransac_result_0114_{subname}_ellipse{ELLIPSE_POINT_NUM}_{THETA_NUM}"
+    save_image_folder_path = os.path.basename(video_path).replace(".","")  + f"ransac_result_0120_{subname}_ellipse{ELLIPSE_POINT_NUM}_{THETA_NUM}"
     os.makedirs(save_image_folder_path, exist_ok=True)
     
     # video
-    frame_rate = 5
-    fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-    size = (800, 800) 
+    # frame_rate = 5
+    # fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    # size = (800, 800) 
     
-    video_file_path = os.path.join(save_image_folder_path, f"result_{THETA_NUM}.mp4")
-    writer = cv2.VideoWriter(video_file_path, fmt, frame_rate, size)
-    picture_paths = sorted(glob.glob(os.path.join(save_image_folder_path, "*.jpg")))
-    for path in picture_paths:
-        frame = cv2.imread(path)
-        frame = cv2.resize(frame, dsize=size)
-        writer.write(frame)
-    writer.release()  
-    exit()
+    # video_file_path = os.path.join(save_image_folder_path, f"result_{THETA_NUM}.mp4")
+    # writer = cv2.VideoWriter(video_file_path, fmt, frame_rate, size)
+    # picture_paths = sorted(glob.glob(os.path.join(save_image_folder_path, "*.jpg")))
+    # for path in picture_paths:
+    #     frame = cv2.imread(path)
+    #     frame = cv2.resize(frame, dsize=size)
+    #     writer.write(frame)
+    # writer.release()  
+
 
 
 
@@ -531,13 +532,19 @@ if __name__ == "__main__":
                 fig =  plt.figure(figsize=(24, 24))
                 ax1 = fig.add_subplot(3, 3, 1)
                 if inpaint_image is not None:
-                    ax1.imshow(input_image, cmap="gray")
+                    # ax1.imshow(input_image, cmap="gray")
+                    ax1.imshow(cv2.cvtColor(input_image, cv2.COLOR_GRAY2BGR))
+                    
                 else:
-                    ax1.imshow(original_image, cmap="gray")
+                    # ax1.imshow(original_image, cmap="gray")
+                    ax1.imshow(cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR))
+                    
                 ax1.axis("off")
                 ax1.set_title(f"Frame {frame_count} original image")
                 ax2 = fig.add_subplot(3, 3, 2)
-                ax2.imshow(blured_image, cmap="gray")
+                # ax2.imshow(blured_image, cmap="gray")
+                ax2.imshow(cv2.cvtColor(blured_image, cv2.COLOR_GRAY2BGR), cmap="gray")
+                
                 ax2.axis("off")
                 ax2.set_title(f"Blurred image ")
                 ax3 = fig.add_subplot(3, 3, 3)
@@ -646,13 +653,17 @@ if __name__ == "__main__":
             fig =  plt.figure(figsize=(24, 24))
             ax1 = fig.add_subplot(3, 3, 1)
             if inpaint_image is not None:
-                ax1.imshow(input_image, cmap="gray")
+                # ax1.imshow(input_image, cmap="gray")
+                ax1.imshow(cv2.cvtColor(input_image, cv2.COLOR_GRAY2BGR))
+                
             else:
-                ax1.imshow(original_image, cmap="gray")
+                # ax1.imshow(original_image, cmap="gray")
+                ax1.imshow(cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR))
             ax1.axis("off")
             ax1.set_title(f"Frame {frame_count} original image")
             ax2 = fig.add_subplot(3, 3, 2)
-            ax2.imshow(blured_image, cmap="gray")
+            # ax2.imshow(blured_image, cmap="gray")
+            ax2.imshow(cv2.cvtColor(blured_image, cv2.COLOR_GRAY2BGR), cmap="gray")
             ax2.axis("off")
             ax2.set_title(f"Blurred image ")
             ax3 = fig.add_subplot(3, 3, 3)
@@ -702,15 +713,15 @@ if __name__ == "__main__":
                 ax8 = fig.add_subplot(3, 3, 7)
                 ax8.imshow(draw_detect_line_image)
                 ax8.axis("off")
-                ax8.set_title(f" detect line")
+                ax8.set_title(f" Detected lines")
                 ax9 = fig.add_subplot(3, 3, 8)
                 ax9.imshow(mask, cmap="gray")
                 ax9.axis("off")
-                ax9.set_title(f" noise line mask")
+                ax9.set_title(f"Noise line mask")
                 ax10 = fig.add_subplot(3, 3, 9)
                 ax10.imshow(inpaint_image)
                 ax10.axis("off")
-                ax10.set_title(f"inpaint image")
+                ax10.set_title(f"Inpaint image")
             plt.tight_layout()
             
             save_path = os.path.join(save_image_folder_path, f"debug_frame{frame_count:04d}_median_kernel{kernel_size}.jpg")

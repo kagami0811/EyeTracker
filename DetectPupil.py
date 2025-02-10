@@ -20,7 +20,7 @@ from tqdm import tqdm
 from delete_noise_line import delete_line
 from config import get_cfg_defaults
 import sys
-
+from tqdm import tqdm
 
 random.seed(314)
 
@@ -55,12 +55,14 @@ else:
     REFINE = False
 # MAX_INFERENCE_FRMAE = 300
 RANSAC_MSE_TH = 10 # ransacの正常値を決める閾値
-DELETE_HIGHLIGHT = True
 
 
 
 
-def blur_image(original_image, type, kernel_size=3):
+def blur_image(original_image, type, kernel_size=3): 
+    '''
+    ノイズ除去 
+    '''
     if type=="median":
         blured_image = cv2.medianBlur(original_image, ksize=3)
     if type == "gaussian":
@@ -69,8 +71,9 @@ def blur_image(original_image, type, kernel_size=3):
     return blured_image
 
 def make_sobel_image(sobel_kernel, blured_image):
-
-  
+    '''
+    画像を微分
+    '''
     sobel_x = cv2.Sobel(blured_image, cv2.CV_64F, 1, 0, ksize=sobel_kernel)               # 水平方向の勾配
     sobel_y = cv2.Sobel(blured_image, cv2.CV_64F, 0, 1, ksize=sobel_kernel)               # 垂直方向の勾配
     sobel_x = cv2.convertScaleAbs(sobel_x)
@@ -86,6 +89,9 @@ def make_sobel_image(sobel_kernel, blured_image):
 
 
 def get_points(gray, start, theta):
+    '''
+    中心(start)から放射上の点群を作成
+    '''
     h, w = gray.shape
     max_l = math.sqrt((h - start[1])**2 + (w - start[0])**2)
     lengths = np.linspace(0, max_l, RADIUS_NUM)
@@ -96,7 +102,9 @@ def get_points(gray, start, theta):
     return ray_points
 
 def get_values(gray, ray_points):
-
+    '''
+    ray_points の画素値を取得
+    '''
     h, w = gray.shape
     ray_points_ = copy.deepcopy(ray_points)
     ray_points_[:, 0] = (ray_points[:, 0] - ( w//2)) / (w //2)
@@ -113,6 +121,9 @@ def get_values(gray, ray_points):
 
 
 def take_differencial(original_points):
+    '''
+    original_pointsの差分をとる（微分する）
+    '''
     rotated_points = np.roll(original_points, shift=1)
     diff = original_points - rotated_points
     diff[0] = 0
@@ -120,6 +131,9 @@ def take_differencial(original_points):
 
 
 def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=ELLIPSE_POINT_NUM):
+    '''
+    ransacにより瞳をfittingする楕円の候補を求める
+    '''
     H, W = gray.shape
     assert len(picked_points_all_direction) >= 5
     good_elipses = [] # ransacで基準を満たすものの
@@ -144,7 +158,7 @@ def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=ELLIPSE_P
         a = max(h, w)
         b = min(h, w)
         f = (a - b) / a
-        if f > 0.3:
+        if f > 0.3: # 楕円が細長すぎるものを除去
             continue
         if a > 1 *(W // 2): # 長径が大きすぎるもの（画像サイズの半分以上）を除去
             continue
@@ -166,7 +180,7 @@ def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=ELLIPSE_P
         ellpise_surrounding = np.concatenate([ellipse_x[:,None], ellipse_y[:,None]], axis=1)
         
         # 全データサンプルを用いて誤差の小さいもので再度　fitting
-        normal_value_points = []
+        normal_value_points = []# fittingした楕円との距離がRANSAC_MSE_TH以下の点のみを残す
         for point in picked_points_all_direction:
             distance =  np.linalg.norm((ellpise_surrounding-point), axis=1)
             min_dist = np.min(distance)
@@ -212,8 +226,7 @@ def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=ELLIPSE_P
         mse = np.mean(min_distance_list)
         fit_mse_scores.append(mse)
 
-        # sobel画像のピクセル値を計算(白い方が良い)
-
+        # fittingsobel画像のピクセル値を計算(白い方が良い)
         ray_points_ = copy.deepcopy(ellpise_surrounding)
         ray_points_[:, 0] = (ellpise_surrounding[:, 0] - ( W//2)) / (W //2)
         ray_points_[:, 1] = (ellpise_surrounding[:, 1] - ( H // 2)) / ( H //2)
@@ -406,32 +419,32 @@ def refine_ransac(candidate_points, gray, sobel, pupil_center, pupil_major, pupi
 
 if __name__ == "__main__":
     plt.rcParams["font.size"] = 20
-    video_path = "241208cut2_crop_trim22m_b01_c18.mov"
-    # video_path = "input_crop.mp4"
+    # video_path = "241208cut2_crop_trim22m_b01_c18.mov"
+    video_path = "input_crop.mp4"
     if DELETE_LINE:
         subname = "refine"
     else:
         subname = "normal"
-    save_basename = f"ransac_result_0207_{subname}_ellipse{ELLIPSE_POINT_NUM}_{THETA_NUM}"
+    save_basename = f"ransac_result_0211_{subname}_delete_line"
     save_image_folder_path = os.path.basename(video_path).replace(".","")  + save_basename
     os.makedirs(save_image_folder_path, exist_ok=True)
     
-    # video
-    frame_rate = 5
-    fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-    size = (800, 800) 
+    # # video
+    # frame_rate = 5
+    # fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    # size = (800, 800) 
     
-    video_file_path = os.path.join(save_image_folder_path, f"result_{save_basename}.mp4")
-    writer = cv2.VideoWriter(video_file_path, fmt, frame_rate, size)
-    picture_paths = sorted(glob.glob(os.path.join(save_image_folder_path, "*.jpg")))[1:]
-    for path in picture_paths:
-        frame = cv2.imread(path)
-        frame = cv2.resize(frame, dsize=size)
-        writer.write(frame)
-    writer.release()  
+    # video_file_path = os.path.join(save_image_folder_path, f"result_{save_basename}.mp4")
+    # writer = cv2.VideoWriter(video_file_path, fmt, frame_rate, size)
+    # picture_paths = sorted(glob.glob(os.path.join(save_image_folder_path, "*.jpg")))[1:]
+    # for path in picture_paths:
+    #     frame = cv2.imread(path)
+    #     frame = cv2.resize(frame, dsize=size)
+    #     writer.write(frame)
+    # writer.release()  
 
 
-    exit()
+    # exit()
   
     # video_path = "241208cut2_crop.mov"
     
@@ -455,29 +468,29 @@ if __name__ == "__main__":
             
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray = cv2.resize(gray, (600, 600))
+            # gray = cv2.resize(gray, (600, 600))
     
             original_image = gray[120:520,60:440]
             
             #  cx,257 cy,300 w40, h25, deg -10
             
             
-            if DELETE_HIGHLIGHT:
-                high_light_mask = np.zeros(cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR).shape).astype(np.uint8)
-                high_light_mask =   cv2.ellipse(high_light_mask,((257,300),(50,30),-10),(255,255,255),20)
-                high_light_mask  = cv2.cvtColor(high_light_mask, cv2.COLOR_BGR2GRAY)
-                # image = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
-                # copy_image = copy.deepcopy(image)
-                # image = cv2.ellipse(image,((257,300),(40,25),-10),(0,255,2255),5)
-                # fig =  plt.figure(figsize=(24, 18))
-                # ax1 = fig.add_subplot(1, 3, 1)
-                # ax1.imshow(copy_image)
-                # ax2 = fig.add_subplot(1, 3, 2)
-                # ax2.imshow(image)
-                # ax3 = fig.add_subplot(1, 3, 3)
-                # ax3.imshow(high_light_mask)
-                # plt.show()
-                # plt.close()
+            # if DELETE_HIGHLIGHT:
+            #     high_light_mask = np.zeros(cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR).shape).astype(np.uint8)
+            #     high_light_mask =   cv2.ellipse(high_light_mask,((257,300),(50,30),-10),(255,255,255),20)
+            #     high_light_mask  = cv2.cvtColor(high_light_mask, cv2.COLOR_BGR2GRAY)
+            #     # image = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
+            #     # copy_image = copy.deepcopy(image)
+            #     # image = cv2.ellipse(image,((257,300),(40,25),-10),(0,255,2255),5)
+            #     # fig =  plt.figure(figsize=(24, 18))
+            #     # ax1 = fig.add_subplot(1, 3, 1)
+            #     # ax1.imshow(copy_image)
+            #     # ax2 = fig.add_subplot(1, 3, 2)
+            #     # ax2.imshow(image)
+            #     # ax3 = fig.add_subplot(1, 3, 3)
+            #     # ax3.imshow(high_light_mask)
+            #     # plt.show()
+            #     # plt.close()
             
             
             if DELETE_LINE:
@@ -501,8 +514,8 @@ if __name__ == "__main__":
             dilate_original = cv2.dilate(erode_original, erode_kernel, iterations=1)
             mask_sobel_combined = copy.deepcopy(sobel_combined)
             mask_sobel_combined[mask==255] = 0
-            if DELETE_HIGHLIGHT:
-                mask_sobel_combined[high_light_mask==255] = 0
+            # if DELETE_HIGHLIGHT:
+            #     mask_sobel_combined[high_light_mask==255] = 0
             erode = cv2.erode(mask_sobel_combined, erode_kernel, iterations=1)
             dilate = cv2.dilate(erode, erode_kernel, iterations=1)
             
@@ -545,8 +558,8 @@ if __name__ == "__main__":
                 
             if mask is not None:
                 dilated_mask = cv2.dilate(mask, erode_kernel, iterations=3)
-            if DELETE_HIGHLIGHT:
-                dilated_high_light_mask = cv2.dilate(high_light_mask, erode_kernel, iterations=10)
+            # if DELETE_HIGHLIGHT:
+            #     dilated_high_light_mask = cv2.dilate(high_light_mask, erode_kernel, iterations=10)
               
                     # cv2.namedWindow("img", cv2.WINDOW_NORMAL)
                     # cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
@@ -570,9 +583,9 @@ if __name__ == "__main__":
                     mask_value = get_values(gray=dilated_mask, ray_points=picked_points)
                     picked_points= picked_points[mask_value < 200]
                 # print(len(picked_points))
-                if  DELETE_HIGHLIGHT:
-                    high_light_mask_value= get_values(gray=dilated_high_light_mask, ray_points=picked_points)
-                    picked_points= picked_points[high_light_mask_value < 200]
+                # if  DELETE_HIGHLIGHT:
+                #     high_light_mask_value= get_values(gray=dilated_high_light_mask, ray_points=picked_points)
+                #     picked_points= picked_points[high_light_mask_value < 200]
 
                 # print("->",len(picked_points))
                 if len(picked_points) > 0:
@@ -839,7 +852,7 @@ if __name__ == "__main__":
                 ax10 = fig.add_subplot(3, 3, 9)
                 ax10.imshow(cv2.cvtColor(dilate, cv2.COLOR_GRAY2BGR))
                 ax10.axis("off")
-                ax10.set_title(f"Soel delete line")            
+                ax10.set_title(f"Sobel delete line")            
             
             plt.tight_layout()
             
@@ -851,7 +864,8 @@ if __name__ == "__main__":
             frame_count +=1
             if frame_count >= total_frame_num:
                 break 
-
+            if frame_count > 300:
+                continue
 
             continue
    

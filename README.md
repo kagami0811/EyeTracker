@@ -44,7 +44,7 @@ ffmpeg -i input.mov -vf "eq=brightness=0.1:contrast=1.8" output.mov
 
 ## 実行
 
-- config.yamlファイルで入出力,目の領域、最初のフレームの瞳孔の中心座標,長径,短径(Data, Init)とその他の設定を変更する
+- config.yamlファイルで入出力,目の領域,最初のフレームの瞳孔の中心座標,長径,短径(Data, Init)とその他の設定を変更する
 
 ```
 python DetectPupil.py config.yaml

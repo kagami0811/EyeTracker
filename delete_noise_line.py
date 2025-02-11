@@ -7,9 +7,8 @@ import torch
 import torch.nn.functional as F
 from einops import rearrange
 
-ALL_X_INPAINT = True
-
-NOISE_LINE_WIDTH = 10
+ALL_X_INPAINT = True # x軸全てをinpaintするか
+NOISE_LINE_WIDTH = 15
 
 def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
@@ -21,6 +20,9 @@ def soft_max(x, axis=1):
 
 
 def inpaint_hline(img, lines):
+    '''
+    線ノイズ(lines)の部分を表すマスクを作成 画像自体はinpaintしない。(微分画像上で線ノイズ由来の微分を無視する)
+    '''
     
     inpaint_img = copy.deepcopy(img)
     draw_image = copy.deepcopy(img)
@@ -36,7 +38,9 @@ def inpaint_hline(img, lines):
         draw_image = cv2.line(draw_image, (x1,y1), (x2,y2), (0,0,255), NOISE_LINE_WIDTH)
     mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
- 
+    
+    return draw_image, mask, inpaint_img
+    # original をinpaintするとき
     for line in lines:
         linewise_mask = np.zeros(img.shape).astype(np.uint8)
         x1, y1, x2, y2 = line[0]
@@ -116,9 +120,9 @@ def inpaint_hline(img, lines):
         
 
         
-    merge = np.hstack([img, draw_image,inpaint_img])
+    # merge = np.hstack([img, draw_image,inpaint_img])
     
-    cv2.imwrite(f"DEBUG_inpaint_{frame_count:03d}.jpg", merge)
+    # cv2.imwrite(f"DEBUG_inpaint_{frame_count:03d}.jpg", merge)
     # cv2.namedWindow("img", cv2.WINDOW_NORMAL)
     # cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     # cv2.imshow("img", merge)
@@ -208,11 +212,12 @@ def inpaint_line(img, lines, frame_count=None): # oepncv あまりうまくい�
 
 
 def delete_line(img, frame_count=None):
-    #
+    '''
+    img上の線ノイズの部分のmaskを作成 ここで画像自体のinpaintはしない
+    '''
     gray = copy.deepcopy(img)
     draw_image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
     color_image = copy.deepcopy(draw_image)
-    # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     #https://labs.eecs.tottori-u.ac.jp/sd/Member/oyamada/OpenCV/html/py_tutorials/py_imgproc/py_houghlines/py_houghlines.html
 
@@ -279,31 +284,31 @@ def delete_line(img, frame_count=None):
 
 
 
-if __name__ == "__main__":
-    video_path = "241208cut2_crop_trim22m_b01_c18.mov"
+# if __name__ == "__main__":
+#     video_path = "241208cut2_crop_trim22m_b01_c18.mov"
 
-    pupil_center_points_list = [[240, 230]]
-    pupil_major_minor_list= [[125, 135]]
+#     pupil_center_points_list = [[240, 230]]
+#     pupil_major_minor_list= [[125, 135]]
 
-    cap = cv2.VideoCapture(video_path)
-    total_frame_num = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-    frame_count = 0
+#     cap = cv2.VideoCapture(video_path)
+#     total_frame_num = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+#     frame_count = 0
     
-    while True:
-        ret, frame = cap.read()
-        if ret == True:
+#     while True:
+#         ret, frame = cap.read()
+#         if ret == True:
             
 
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            gray = cv2.resize(gray, (600, 600))
+#             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#             gray = cv2.resize(gray, (600, 600))
     
-            original_image = gray[120:520,60:440]
-            _, _, inpaint_image = delete_line(img=original_image, frame_count=frame_count)
+#             original_image = gray[120:520,60:440]
+#             _, _, inpaint_image = delete_line(img=original_image, frame_count=frame_count)
             
-            frame_count += 1
-            if frame_count > 100:
-                break
-    cap.release()
+#             frame_count += 1
+#             if frame_count > 100:
+#                 break
+#     cap.release()
 
 
     

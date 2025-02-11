@@ -1,0 +1,26 @@
+Data:
+  InputMoviePath: "input_crop.mp4" # 入力動画
+  DebugDir: "./debug_image" # 中間処理の画像の出力先
+  OutputFilePath: "./debug_image/result.csv" # 結果の出力先
+
+Init: 
+  ImageCrop: [60,120, 440, 520] # 目の周囲のみの切抜き (左上, 右上)の座標x0, y0, x1, y1
+  PupilCenter: [240, 230] # 最初のフレームの瞳の中心
+  PupilMajorMinor: [135, 125] # 最初のフレームの瞳の長径、短径
+ 
+
+Option:
+  DELETE_LINE: True # 横線のノイズを消すか
+
+Params:
+  MAX_RANSAC_TIME: 5000 # ransacの最大繰り返し回数
+  ELLIPSE_POINT_NUM: 10 # ransacで楕円fittingに使用する点の個数
+  RANSAC_MSE_TH: 10 # ransacの正常値を決める閾値
+  USE_MSE: True #ransacで”良い”楕円の基準にfittingした楕円と観測点とのmseを使うか
+  USE_PIKEL: True #ransacで"良い"楕円を選ぶ基準にfittingした楕円周上の画素値の積分値を使うか
+  THETA_NUM: 100
+  DIFF_TH: 20 #微分値の閾値
+  OMEGA_NUM: 200
+  RADIUS_NUM: 30
+  BEST_CHOOSE: 10 # ransacで残す楕円の候補
+  PREDICTION_DIST_TH: 30 # Kalmanフィルタが予測した中心とfittingした楕円の中心座標の最大距離の閾値

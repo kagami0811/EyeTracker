@@ -29,7 +29,7 @@ From: nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
 
     apt-get -y install python3-tk
     python3 -m pip install --upgrade pip
-    python3 -m pip install opencv-python numpy matplotlib plotly s3dlib scipy tqdm scikit-image scikit-learn pandas numba pipreqs tensorboard pillow scipy pycalib-simple pyyaml einops psutil joblib
+    python3 -m pip install opencv-python numpy matplotlib plotly s3dlib scipy tqdm scikit-image scikit-learn pandas numba pipreqs tensorboard pillow scipy pycalib-simple pyyaml einops psutil joblib filterpy yacs
     # python3 -m pip install torch==1.12.0+cu113 torchvision==0.13.0+cu113 torchaudio==0.12.0 --extra-index-url https://download.pytorch.org/whl/cu113
     pip install torch==2.1.1 torchvision==0.16.1 torchaudio==2.1.1 --index-url https://download.pytorch.org/whl/cu118
 

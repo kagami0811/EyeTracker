@@ -4,7 +4,7 @@ Data:
   OutputFilePath: "./debug_image/result.csv" # 結果の出力先
 
 Init: 
-  ImageCrop: [60,120, 440, 520] # 目の周囲のみの切抜き (左上, 右上)の座標x0, y0, x1, y1
+  ImageCrop: [60, 120, 440, 520] # 目の周囲のみの切抜き (左上, 右上)の座標x0, y0, x1, y1
   PupilCenter: [240, 230] # 最初のフレームの瞳の中心
   PupilMajorMinor: [135, 125] # 最初のフレームの瞳の長径、短径
  

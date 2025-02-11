@@ -19,6 +19,7 @@ from tqdm import tqdm
 
 random.seed(314)
 
+
 cfg = get_cfg_defaults()
 config_path = sys.argv[1]
 cfg.merge_from_file(config_path)
@@ -26,7 +27,7 @@ cfg.merge_from_file(config_path)
 
 def blur_image(original_image, type, kernel_size=3): 
     '''
-    ノイズ除去 
+    画像(original_image)のノイズ除去 
     '''
     if type=="median":
         blured_image = cv2.medianBlur(original_image, ksize=3)
@@ -37,17 +38,14 @@ def blur_image(original_image, type, kernel_size=3):
 
 def make_sobel_image(sobel_kernel, blured_image):
     '''
-    画像を微分
+    画像(blured_image)を微分
     '''
     sobel_x = cv2.Sobel(blured_image, cv2.CV_64F, 1, 0, ksize=sobel_kernel)               # 水平方向の勾配
     sobel_y = cv2.Sobel(blured_image, cv2.CV_64F, 0, 1, ksize=sobel_kernel)               # 垂直方向の勾配
     sobel_x = cv2.convertScaleAbs(sobel_x)
     sobel_y = cv2.convertScaleAbs(sobel_y)
     sobel_combined = cv2.addWeighted(sobel_x, 0.5, sobel_y, 0.5, 0)
-    # equalize  = cv2.equalizeHist(sobel_combined)
-    # sobel_combined_normalize = sobel_combined.astype(np.float32)
-    # sobel_combined_normalize = (sobel_combined_normalize - np.min(sobel_combined_normalize)) / (np.max(sobel_combined_normalize) - np.min(sobel_combined_normalize))
-
+    
     return sobel_combined
 
 
@@ -68,7 +66,7 @@ def get_points(gray, start, theta):
 
 def get_values(gray, ray_points):
     '''
-    ray_points の画素値を取得
+    画像上(gray)のray_pointsにおける画素値を取得
     '''
     h, w = gray.shape
     ray_points_ = copy.deepcopy(ray_points)
@@ -169,7 +167,7 @@ def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=cfg.Param
         ellpise_surrounding = np.concatenate([ellipse_x[:,None], ellipse_y[:,None]], axis=1) # fittingした楕円上にある点群
         
         
-        # fit した楕円とのmseを計算
+        # fitting した楕円とのmseを計算
         min_distance_list = []
         for point in normal_value_points:
             distance = np.linalg.norm((ellpise_surrounding-point), axis=1)
@@ -225,51 +223,6 @@ def ransac(picked_points_all_direction, gray, sobel, ellipse_point_num=cfg.Param
 
 
 
-
-def select_best(final_candidate_center, final_candidate_major, final_candidate_minor,final_ellipse_candidates, final_candidate_fitted_points, pupil_center,pupil_major, pupil_minor, original_image):
-
-    dist_center = np.linalg.norm(final_candidate_center-pupil_center[None,:], axis=1)
-    dist_major = np.abs(final_candidate_major-pupil_major)
-    dist_minor = np.abs(final_candidate_minor-pupil_minor)
-
-    dist_sum = dist_center + dist_major + dist_minor
-    best_ind = np.argmin(dist_sum)
-    observe_center = final_candidate_center[best_ind]
-    observe_major = final_candidate_major[best_ind]
-    observe_minor = final_candidate_minor[best_ind]
-    observe_ellipse = final_ellipse_candidates[best_ind]
-    observe_points = final_candidate_fitted_points[best_ind]
-
-    result_image= copy.deepcopy(original_image)
-   
-    result_image =  cv2.ellipse(result_image,observe_ellipse,(255,255,0),2)
-    result_image = cv2.circle(result_image, (int(observe_center[0]), int(observe_center[1])), 5,(0,255,0),-1) # green
-
-    
-
-    for point in observe_points:
-        result_image = cv2.circle(result_image, (int(point[0]), int(point[1])), 3,(0,0,255),-1)
-   
-
-
-    return observe_center, observe_major, observe_minor, observe_ellipse, result_image, observe_points
-
-
-
-def refine_ransac(candidate_points, gray, sobel, pupil_center, pupil_major, pupil_minor):
-    final_ellipse_candidates, final_candidate_center, final_candidate_major, final_candidate_minor, image, final_candidate_fitted_points = ransac(picked_points_all_direction=candidate_points, gray=gray, sobel=sobel, ellipse_point_num=int(cfg.Params.ELLIPSE_POINT_NUM*0.7))
-
-    result_image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-    
-    for point in candidate_points:
-        result_image = cv2.circle(result_image, (int(point[0]), int(point[1])), 2,(0,255,255),-1)
-
-
-    observe_center, observe_major, observe_minor, observe_ellipse, result_image, observe_points = select_best(final_candidate_center=final_candidate_center, final_candidate_major=final_candidate_major, final_candidate_minor=final_candidate_minor, final_ellipse_candidates=final_ellipse_candidates, final_candidate_fitted_points=final_candidate_fitted_points, pupil_center=pupil_center, pupil_major=pupil_major, pupil_minor=pupil_minor, original_image=result_image)
-
-    return observe_center, observe_major, observe_minor, observe_ellipse, result_image, observe_points
-    
-
 if __name__ == "__main__":
     plt.rcParams["font.size"] = 20
     video_path=cfg.Data.InputMoviePath
@@ -305,24 +258,6 @@ if __name__ == "__main__":
             crop_x0, crop_y0, crop_x1, crop_y1 = cfg.Init.ImageCrop
             original_image = gray[crop_y0:crop_y1,crop_x0:crop_x1]
             
-            #  cx,257 cy,300 w40, h25, deg -10
-            # if DELETE_HIGHLIGHT:
-            #     high_light_mask = np.zeros(cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR).shape).astype(np.uint8)
-            #     high_light_mask =   cv2.ellipse(high_light_mask,((257,300),(50,30),-10),(255,255,255),20)
-            #     high_light_mask  = cv2.cvtColor(high_light_mask, cv2.COLOR_BGR2GRAY)
-            #     # image = cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR)
-            #     # copy_image = copy.deepcopy(image)
-            #     # image = cv2.ellipse(image,((257,300),(40,25),-10),(0,255,2255),5)
-            #     # fig =  plt.figure(figsize=(24, 18))
-            #     # ax1 = fig.add_subplot(1, 3, 1)
-            #     # ax1.imshow(copy_image)
-            #     # ax2 = fig.add_subplot(1, 3, 2)
-            #     # ax2.imshow(image)
-            #     # ax3 = fig.add_subplot(1, 3, 3)
-            #     # ax3.imshow(high_light_mask)
-            #     # plt.show()
-            #     # plt.close()
-            
             
             if cfg.Option.DELETE_LINE: # 横線ノイズを消すか
                 input_image = copy.deepcopy(original_image)
@@ -341,8 +276,6 @@ if __name__ == "__main__":
             dilate_original = cv2.dilate(erode_original, erode_kernel, iterations=1)
             mask_sobel_combined = copy.deepcopy(sobel_combined)
             mask_sobel_combined[mask==255] = 0 #線ノイズの部分の微分は0にする
-            # if DELETE_HIGHLIGHT:
-            #     mask_sobel_combined[high_light_mask==255] = 0
             erode = cv2.erode(mask_sobel_combined, erode_kernel, iterations=1)
             dilate = cv2.dilate(erode, erode_kernel, iterations=1)
             
@@ -365,14 +298,7 @@ if __name__ == "__main__":
                 
             if mask is not None:
                 dilated_mask = cv2.dilate(mask, erode_kernel, iterations=3)
-            # if DELETE_HIGHLIGHT:
-            #     dilated_high_light_mask = cv2.dilate(high_light_mask, erode_kernel, iterations=10)
-              
-                    # cv2.namedWindow("img", cv2.WINDOW_NORMAL)
-                    # cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-                    # cv2.imshow("img", dilated_mask)
-                    # cv2.waitKey(0)
-                    # cv2.destroyAllWindows()
+           
             for theta in thetas:
                
                 # 元の画像の微分値でマスクの中に入っているもの以外
@@ -383,7 +309,6 @@ if __name__ == "__main__":
 
                 # (微分画像の微分値を0にしたこと由来で二階微分がでている点を除く)
                 if mask is not None:
-                    
                     mask_value = get_values(gray=dilated_mask, ray_points=picked_points)
                     picked_points= picked_points[mask_value < 200]
                 if len(picked_points) > 0:
@@ -522,21 +447,23 @@ if __name__ == "__main__":
                 # ax1.imshow(original_image, cmap="gray")
                 ax1.imshow(cv2.cvtColor(original_image, cv2.COLOR_GRAY2BGR))
             ax1.axis("off")
-            ax1.set_title(f"Frame {frame_count} original image")
+            ax1.set_title(f"Frame {frame_count} original image") #元画像
             ax2 = fig.add_subplot(3, 3, 2)
             # ax2.imshow(blured_image, cmap="gray")
             ax2.imshow(cv2.cvtColor(blured_image, cv2.COLOR_GRAY2BGR), cmap="gray")
             ax2.axis("off")
-            ax2.set_title(f"Blurred image ")
+            ax2.set_title(f"Blurred image ") #noise除去した画像
             ax3 = fig.add_subplot(3, 3, 3)
             result_image = cv2.cvtColor(result_image, cv2.COLOR_BGR2RGB)
             ax3.imshow(result_image)
             ax3.axis("off")
-            ax3.set_title(f"Detection Result")
+            ax3.set_title(f"Detection Result") # fittingした結果
             ax4 = fig.add_subplot(3, 3, 4)
-            ax4.imshow(sobel_combined, cmap="gray")
+            # ax4.imshow(sobel_combined, cmap="gray")
+            ax4.imshow(cv2.cvtColor(sobel_combined, cv2.COLOR_BGR2RGB))
+
             ax4.axis("off")
-            ax4.set_title(f"Schor(Sobel) filtered image")
+            ax4.set_title(f"Schor(Sobel) filtered image") #微分した画像
            
 
             ax5 = fig.add_subplot(3, 3, 5)
@@ -549,13 +476,13 @@ if __name__ == "__main__":
             ax5.set_ylim([0, original_image.shape[0]])
 
             ax5.axis("off")      
-            ax5.set_title(f"Differentiate in radical direction")     
+            ax5.set_title(f"Differentiate in radical direction")  # 微分画像上で中心から外側にかけて微分した結果。赤:微分値が初めて閾値を超えた点。（楕円fittingに用いる)黄:微分値が閾値を超えた点群
 
             ax6 = fig.add_subplot(3, 3, 6)
             candidate_draw_image = cv2.cvtColor(candidate_draw_image, cv2.COLOR_BGR2RGB)
             ax6.imshow(candidate_draw_image)
             ax6.axis("off")
-            ax6.set_title(f"Candidates")  
+            ax6.set_title(f"Candidates")  #楕円の候補
           
             
             
@@ -564,15 +491,15 @@ if __name__ == "__main__":
                 ax7 = fig.add_subplot(3, 3, 7)
                 ax7.imshow(draw_detect_line_image)
                 ax7.axis("off")
-                ax7.set_title(f" Detected lines")
+                ax7.set_title(f" Detected lines") #検出した横線ノイズ
                 ax8 = fig.add_subplot(3, 3, 8)
                 ax8.imshow(cv2.cvtColor(dilate_original, cv2.COLOR_GRAY2BGR))
                 ax8.axis("off")
-                ax8.set_title(f"Sobel")
+                ax8.set_title(f"Sobel filtered image") #微分画像
                 ax9 = fig.add_subplot(3, 3, 9)
                 ax9.imshow(cv2.cvtColor(dilate, cv2.COLOR_GRAY2BGR))
                 ax9.axis("off")
-                ax9.set_title(f"Sobel delete line")            
+                ax9.set_title(f"Sobel filtered image with line noise deleted")  #線ノイズの領域の微分値を0にした画像         
             
             plt.tight_layout()
             
@@ -587,9 +514,10 @@ if __name__ == "__main__":
          
     cap.release()
 
-    #結果をcsvファイルに保存
+    #楕円fitting 結果をcsvファイルに保存
     df.to_csv(cfg.Data.OutputFilePath, index=False)
-    # 結果をvideoに
+
+    # 結果をvideoに変換
     frame_rate = 5
     fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
     size = (600, 600) 

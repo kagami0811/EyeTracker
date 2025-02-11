@@ -1,17 +1,60 @@
 # EyeTracker 
 
-## Environment
+## 環境
     
 
 ```
 singularity build --fakeroot EyeTrack.sif EyeTrack.def
+
 singularity shell --nv EyeTrack.sif
 ```
 
-## Tracking
+## 前処理
+
+<!-- 
+- 目の周辺のみを切りとる
+
 
 ```
-python OrloskyPupilDetector.py video_path
+ffmpeg -i input.mov -vf crop=w=600:h=600 output.mov
+``` -->
+
+
+<!-- - trimming
+
+```
+ffmpeg -ss 00:22:00 -t 20  -i 241208cut2_crop.mov -c copy 241208cut2_crop_trim22m.mov
+ffmpeg -ss 00:16:33 -t 20  -i 241208cut2_crop.mov -c copy 241208cut2_crop_trim21633m.mov
+ffmpeg -ss 00:16:42 -t 20  -i 241208cut2_crop.mov -c copy 241208cut2_crop_trim21637m.mov
+
+
+``` -->
+
+- コントラストをできるだけ上げる 
+
+    contrast, brightnessの値は適宜調節する
+
+```
+ffmpeg -i input.mov -vf "eq=brightness=0.1:contrast=1.8" output.mov
+
+```
+
+- 目の周辺を600px x 600 px の大きさで切り取る
+
+
+## 実行
+
+- config.yamlファイルで入出力,初期中心座標,瞳の長径,短径(Data, Init)とその他の設定を変更する
+
+```
+python DetectPupil.py config.yaml
+```
+
+
+<!-- ## Tracking
+
+```
+python OrloskyPupilDetector.py 241208cut2_crop_trim22m_b01_c18.mov
 ```
 
 
@@ -40,4 +83,4 @@ Packages
 
 Assumptions
 - Works best with 640x480 videos. Images will be cropped to size equally horizontally/vertically if aspect ratio is not 4:3.
-- The image must be that of the entire eye. Dark regions in the corners of the image (e.g. VR display lens borders) should be cropped. 
+- The image must be that of the entire eye. Dark regions in the corners of the image (e.g. VR display lens borders) should be cropped.  -->

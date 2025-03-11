@@ -19,7 +19,8 @@ Params:
   USE_MSE: True #ransacで”良い”楕円の基準にfittingした楕円と観測点とのmseを使うか
   USE_PIKEL: True #ransacで"良い"楕円を選ぶ基準にfittingした楕円周上の画素値の積分値を使うか
   THETA_NUM: 100
-  DIFF_TH: 20 #微分値の閾値
+  # DIFF_TH: 20 #微分値の閾値
+  DIFF_TH: 30 #微分値の閾値
   OMEGA_NUM: 200
   RADIUS_NUM: 30
   BEST_CHOOSE: 10 # ransacで残す楕円の候補

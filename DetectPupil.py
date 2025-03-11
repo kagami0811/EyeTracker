@@ -44,9 +44,20 @@ def make_sobel_image(sobel_kernel, blured_image):
     sobel_y = cv2.Sobel(blured_image, cv2.CV_64F, 0, 1, ksize=sobel_kernel)               # 垂直方向の勾配
     sobel_x = cv2.convertScaleAbs(sobel_x)
     sobel_y = cv2.convertScaleAbs(sobel_y)
-    sobel_combined = cv2.addWeighted(sobel_x, 0.5, sobel_y, 0.5, 0)
+    # sobel_combined = cv2.addWeighted(sobel_x, 0.5, sobel_y, 0.5, 0)
+    sobel_add = sobel_x + sobel_y
     
-    return sobel_combined
+    # fig =  plt.figure(figsize=(24, 18))
+    # ax1 = fig.add_subplot(1, 2, 1)
+    # ax2 = fig.add_subplot(1, 2, 2)
+    # ax1.imshow(cv2.cvtColor(sobel_combined, cv2.COLOR_BGR2RGB))
+    # ax2.imshow(cv2.cvtColor(sobel_add, cv2.COLOR_BGR2RGB))
+    # plt.show()
+    # plt.close()
+    
+    # return sobel_combined
+    
+    return sobel_add
 
 
 
@@ -420,9 +431,20 @@ if __name__ == "__main__":
             #fittingした楕円とKalmanFilterの予測が離れすぎているときはKalmanFilterをアップデートしない
             prediction_dist = np.linalg.norm(observe_center - pupil_center)
             if prediction_dist < cfg.Params.PREDICTION_DIST_TH:
+                # velocity 
+                prev_pos = pupil_center_points_list[-1]
+                prev_major_minor = pupil_major_minor_list[-1]
+                velocity_x = observe_center[0] - prev_pos[0]
+                velocity_y = observe_center[1] - prev_pos[1]
+                velocity_major = observe_major - prev_major_minor[0]
+                velocity_minor = observe_minor - prev_major_minor[1]
+                # print(observe_major, prev_major_minor[0])
+                # print(observe_minor, prev_major_minor[1])
+                
+                # print(velocity_major, velocity_minor, velocity_x, velocity_y)
                 # update
-                pupil_center_tracker.update(new_posx=observe_center[0], new_posy=observe_center[1])
-                pupil_major_minor_tracker.update(new_posx=observe_major, new_posy=observe_minor)
+                pupil_center_tracker.update(new_posx=observe_center[0], new_posy=observe_center[1], new_velocity_x=velocity_x, new_velocity_y=velocity_y)
+                pupil_major_minor_tracker.update(new_posx=observe_major, new_posy=observe_minor, new_velocity_x=velocity_major, new_velocity_y=velocity_minor)
 
                 pupil_center_points_list.append(observe_center)
                 pupil_major_minor_list.append([observe_major, observe_minor])
@@ -461,10 +483,9 @@ if __name__ == "__main__":
             ax4 = fig.add_subplot(3, 3, 4)
             # ax4.imshow(sobel_combined, cmap="gray")
             ax4.imshow(cv2.cvtColor(sobel_combined, cv2.COLOR_BGR2RGB))
-
             ax4.axis("off")
             ax4.set_title(f"Schor(Sobel) filtered image") #微分した画像
-           
+
 
             ax5 = fig.add_subplot(3, 3, 5)
             ax5.imshow(cv2.flip(cv2.cvtColor(dilate, cv2.COLOR_GRAY2BGR), 0))
@@ -481,6 +502,7 @@ if __name__ == "__main__":
             ax6 = fig.add_subplot(3, 3, 6)
             candidate_draw_image = cv2.cvtColor(candidate_draw_image, cv2.COLOR_BGR2RGB)
             ax6.imshow(candidate_draw_image)
+            ax6.scatter(pupil_center[0], pupil_center[1], s=50, c="magenta") # KalmanFilterの予測
             ax6.axis("off")
             ax6.set_title(f"Candidates")  #楕円の候補
           
